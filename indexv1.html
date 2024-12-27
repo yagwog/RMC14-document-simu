@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SS14 Document Formatter</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: row;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+        }
+
+        #toolbar {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 10px;
+            background-color: #eeeeee;
+            border-right: 1px solid #ccc;
+            width: 150px;
+        }
+
+        #editor {
+            flex: 1;
+            padding: 10px;
+            white-space: pre-wrap;
+            overflow-wrap: break-word;
+            font-family: monospace;
+            background-color: #ffffff;
+            border-right: 1px solid #ccc;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+
+        #render {
+            width: 600px; /* Adjust to your desired width */
+            padding: 10px;
+            background-color: #fff9e5;
+            font-family: 'Noto Sans', Arial, sans-serif;
+            white-space: pre-wrap; /* Ensures long lines wrap */
+            word-wrap: break-word; /* Ensures lines break within words if needed */
+            line-height: 1.1; /* Add consistent line-height for all content */
+            overflow-y: auto;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+
+        .image-container {
+            width: 300px;
+            padding: 10px;
+            background-color: #eeeeee;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-left: 1px solid #ccc;
+        }
+
+        .image-container img {
+            max-width: 100%;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .bold, .italic, .bolditalic, .header-1, .header-2, .header-3 {
+            line-height: 1.1; /* Ensure consistent spacing across all formatted tags */
+        }
+
+        .plain-text {
+            opacity: 0.85; /* Apply slight opacity */
+            color: black;
+        }
+
+        .red {
+            color: rgba(255, 0, 0, 0.9);
+        }
+
+        .bold {
+            font-weight: bold;
+        }
+
+        .italic {
+            font-style: italic;
+        }
+
+        .bolditalic {
+            font-weight: bold;
+            font-style: italic;
+        }
+
+        .header-1 {
+            font-size: 1.8em;
+            font-weight: bold;
+        }
+
+        .header-2 {
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+
+        .header-3 {
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+
+        hr {
+            border: none;
+            border-top: 2px solid red;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="toolbar">
+        <button onclick="insertTag('bold')">Bold</button>
+        <button onclick="insertTag('italic')">Italic</button>
+        <button onclick="insertTag('bolditalic')">Bold Italic</button>
+        <button onclick="insertTag('header-1')">Header 1</button>
+        <button onclick="insertTag('header-2')">Header 2</button>
+        <button onclick="insertTag('header-3')">Header 3</button>
+        <button onclick="insertTag('red')">Red Text</button>
+        <button onclick="insertTag('hex')">Hex Color</button>
+        <button onclick="insertTag('bullet')">Bullet</button>
+        <button onclick="render()">Render</button>
+    </div>
+
+    <textarea id="editor" placeholder="Type your formatted document here..."></textarea>
+
+    <div id="render"></div>
+
+    <div class="image-container">
+        <img src="https://media.discordapp.net/attachments/1289342770003316889/1320274808965042197/image.png?ex=676f98bb&is=676e473b&hm=9614bb07142fe54d66ed768cbd230665ad48edbe1f2489139fd4d5e8e0cecb90&=&format=webp&quality=lossless&width=150&height=166" alt="Placeholder Image">
+    </div>
+
+    <script>
+        const namedColors = {
+            "AliceBlue": "#F0F8FF", "AntiqueWhite": "#FAEBD7", "Aqua": "#00FFFF",
+            "Aquamarine": "#7FFFD4", "Azure": "#F0FFFF", "Beige": "#F5F5DC",
+            "Bisque": "#FFE4C4", "Black": "#000000", "BlanchedAlmond": "#FFEBCD",
+            "Blue": "#0000FF", "BlueViolet": "#8A2BE2", "Brown": "#A52A2A",
+            "BurlyWood": "#DEB887", "CadetBlue": "#5F9EA0", "Chartreuse": "#7FFF00",
+            "Chocolate": "#D2691E", "Coral": "#FF7F50", "CornflowerBlue": "#6495ED",
+            "Cornsilk": "#FFF8DC", "Crimson": "#DC143C", "Cyan": "#00FFFF",
+            "DarkBlue": "#00008B", "DarkCyan": "#008B8B", "DarkGoldenRod": "#B8860B",
+            "DarkGray": "#A9A9A9", "DarkGreen": "#006400", "DarkKhaki": "#BDB76B",
+            "DarkMagenta": "#8B008B", "DarkOliveGreen": "#556B2F", "DarkOrange": "#FF8C00",
+            "DarkOrchid": "#9932CC", "DarkRed": "#8B0000", "DarkSalmon": "#E9967A",
+            "DarkSeaGreen": "#8FBC8F", "DarkSlateBlue": "#483D8B", "DarkSlateGray": "#2F4F4F",
+            "DarkTurquoise": "#00CED1", "DarkViolet": "#9400D3", "DeepPink": "#FF1493",
+            "DeepSkyBlue": "#00BFFF", "DimGray": "#696969", "DodgerBlue": "#1E90FF",
+            "FireBrick": "#B22222", "FloralWhite": "#FFFAF0", "ForestGreen": "#228B22",
+            "Fuchsia": "#FF00FF", "Gainsboro": "#DCDCDC", "GhostWhite": "#F8F8FF",
+            "Gold": "#FFD700", "GoldenRod": "#DAA520", "Gray": "#808080",
+            "Green": "#008000", "GreenYellow": "#ADFF2F", "HoneyDew": "#F0FFF0",
+            "HotPink": "#FF69B4", "IndianRed": "#CD5C5C", "Indigo": "#4B0082",
+            "Ivory": "#FFFFF0", "Khaki": "#F0E68C", "Lavender": "#E6E6FA",
+            "LavenderBlush": "#FFF0F5", "LawnGreen": "#7CFC00", "LemonChiffon": "#FFFACD",
+            "LightBlue": "#ADD8E6", "LightCoral": "#F08080", "LightCyan": "#E0FFFF",
+            "LightGoldenRodYellow": "#FAFAD2", "LightGray": "#D3D3D3", "LightGreen": "#90EE90",
+            "LightPink": "#FFB6C1", "LightSalmon": "#FFA07A", "LightSeaGreen": "#20B2AA",
+            "LightSkyBlue": "#87CEFA", "LightSlateGray": "#778899", "LightSteelBlue": "#B0C4DE",
+            "LightYellow": "#FFFFE0", "Lime": "#00FF00", "LimeGreen": "#32CD32",
+            "Linen": "#FAF0E6", "Magenta": "#FF00FF", "Maroon": "#800000",
+            "MediumAquaMarine": "#66CDAA", "MediumBlue": "#0000CD", "MediumOrchid": "#BA55D3",
+            "MediumPurple": "#9370DB", "MediumSeaGreen": "#3CB371", "MediumSlateBlue": "#7B68EE",
+            "MediumSpringGreen": "#00FA9A", "MediumTurquoise": "#48D1CC", "MediumVioletRed": "#C71585",
+            "MidnightBlue": "#191970", "MintCream": "#F5FFFA", "MistyRose": "#FFE4E1",
+            "Moccasin": "#FFE4B5", "NavajoWhite": "#FFDEAD", "Navy": "#000080",
+            "OldLace": "#FDF5E6", "Olive": "#808000", "OliveDrab": "#6B8E23",
+            "Orange": "#FFA500", "OrangeRed": "#FF4500", "Orchid": "#DA70D6",
+            "PaleGoldenRod": "#EEE8AA", "PaleGreen": "#98FB98", "PaleTurquoise": "#AFEEEE",
+            "PaleVioletRed": "#DB7093", "PapayaWhip": "#FFEFD5", "PeachPuff": "#FFDAB9",
+            "Peru": "#CD853F", "Pink": "#FFC0CB", "Plum": "#DDA0DD",
+            "PowderBlue": "#B0E0E6", "Purple": "#800080", "RebeccaPurple": "#663399",
+            "Red": "#FF0000", "RosyBrown": "#BC8F8F", "RoyalBlue": "#4169E1",
+            "SaddleBrown": "#8B4513", "Salmon": "#FA8072", "SandyBrown": "#F4A460",
+            "SeaGreen": "#2E8B57", "SeaShell": "#FFF5EE", "Sienna": "#A0522D",
+            "Silver": "#C0C0C0", "SkyBlue": "#87CEEB", "SlateBlue": "#6A5ACD",
+            "SlateGray": "#708090", "Snow": "#FFFAFA", "SpringGreen": "#00FF7F",
+            "SteelBlue": "#4682B4", "Tan": "#D2B48C", "Teal": "#008080",
+            "Thistle": "#D8BFD8", "Tomato": "#FF6347", "Turquoise": "#40E0D0",
+            "Violet": "#EE82EE", "Wheat": "#F5DEB3", "White": "#FFFFFF",
+            "WhiteSmoke": "#F5F5F5", "Yellow": "#FFFF00", "YellowGreen": "#9ACD32"
+        };
+
+        function render() {
+            const editorContent = document.getElementById('editor').value;
+            const renderDiv = document.getElementById('render');
+            renderDiv.innerHTML = editorContent
+                .replace(/\[bold\](.*?)\[\/bold\]/gs, '<span class="bold">$1</span>')
+                .replace(/\[italic\](.*?)\[\/italic\]/gs, '<span class="italic">$1</span>')
+                .replace(/\[bolditalic\](.*?)\[\/bolditalic\]/gs, '<span class="bolditalic">$1</span>')
+                .replace(/\[head=1\](.*?)\[\/head\]/gs, '<span class="header-1">$1</span>')
+                .replace(/\[head=2\](.*?)\[\/head\]/gs, '<span class="header-2">$1</span>')
+                .replace(/\[head=3\](.*?)\[\/head\]/gs, '<span class="header-3">$1</span>')
+                .replace(/\[bullet\/\]/gs, '• ')
+                .replace(/\[color=([a-zA-Z]+)\](.*?)\[\/color\]/gs, (_, color, text) => {
+                    const hex = namedColors[color] || color;
+                    return `<span style="color:${hex}">${text}</span>`;
+                })
+                .replace(/\[color=#([0-9A-Fa-f]{6})\](.*?)\[\/color\]/gs, '<span style="color:#$1">$2</span>');
+        }
+
+        function insertTag(tag) {
+            const editor = document.getElementById('editor');
+            const start = editor.selectionStart;
+            const end = editor.selectionEnd;
+            const selectedText = editor.value.substring(start, end);
+
+            let openTag = '', closeTag = '';
+
+            switch (tag) {
+                case 'bold':
+                    openTag = '[bold]';
+                    closeTag = '[/bold]';
+                    break;
+                case 'italic':
+                    openTag = '[italic]';
+                    closeTag = '[/italic]';
+                    break;
+                case 'bolditalic':
+                    openTag = '[bolditalic]';
+                    closeTag = '[/bolditalic]';
+                    break;
+                case 'header-1':
+                    openTag = '[head=1]';
+                    closeTag = '[/head]';
+                    break;
+                case 'header-2':
+                    openTag = '[head=2]';
+                    closeTag = '[/head]';
+                    break;
+                case 'header-3':
+                    openTag = '[head=3]';
+                    closeTag = '[/head]';
+                    break;
+                case 'bullet':
+                    openTag = '[bullet/] ';
+                    closeTag = '';
+                    break;
+                case 'red':
+                    openTag = '[color=red]';
+                    closeTag = '[/color]';
+                    break;
+                case 'hex':
+                    const hexColor = prompt("Enter a hex color code (e.g., #FF5733):");
+                    if (hexColor && /^#[0-9A-Fa-f]{6}$/.test(hexColor)) {
+                        openTag = `[color=${hexColor}]`;
+                        closeTag = '[/color]';
+                    } else {
+                        alert("Invalid hex code!");
+                        return;
+                    }
+                    break;
+            }
+
+            const before = editor.value.substring(0, start);
+            const after = editor.value.substring(end);
+
+            editor.value = before + openTag + selectedText + closeTag + after;
+        }
+    </script>
+</body>
+</html>
