@@ -11,6 +11,7 @@
             margin: 0;
             font-family: Arial, sans-serif;
             background-color: #f5f5f5;
+            height: 100vh;
         }
 
         #toolbar {
@@ -21,11 +22,12 @@
             background-color: #eeeeee;
             border-right: 1px solid #ccc;
             width: 150px;
+            box-sizing: border-box;
         }
 
         #editor {
-            flex: 1;
-            padding: 10px;
+            flex: 2;
+            padding: 15px;
             white-space: pre-wrap;
             overflow-wrap: break-word;
             font-family: monospace;
@@ -33,48 +35,92 @@
             border-right: 1px solid #ccc;
             height: 100vh;
             box-sizing: border-box;
+            resize: none;
+        }
+
+        #render-container {
+            display: flex;
+            flex-direction: row;
+            flex: 3;
+            align-items: flex-start;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        #render-wrapper {
+            display: inline-block; /* Shrinks width to match content */
         }
 
         #render {
-            width: 600px; /* Adjust to your desired width */
-            padding: 10px;
+            padding: 20px;
             background-color: #fff9e5;
             font-family: 'Noto Sans', Arial, sans-serif;
-            white-space: pre-wrap; /* Ensures long lines wrap */
-            word-wrap: break-word; /* Ensures lines break within words if needed */
-            line-height: 1.1; /* Add consistent line-height for all content */
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            line-height: 1.2;
             overflow-y: auto;
-            height: 100vh;
             box-sizing: border-box;
+            border-radius: 40px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            border: 1px solid #ddd;
+            margin-right: 20px;
         }
 
         .image-container {
             width: 300px;
-            padding: 10px;
-            background-color: #eeeeee;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-left: 1px solid #ccc;
+            text-align: center;
         }
 
         .image-container img {
             max-width: 100%;
             border-radius: 10px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 10px;
         }
 
-        .bold, .italic, .bolditalic, .header-1, .header-2, .header-3 {
-            line-height: 1.1; /* Ensure consistent spacing across all formatted tags */
+        .image-text {
+            font-size: 0.9em;
+            color: #333;
         }
 
-        .plain-text {
-            opacity: 0.85; /* Apply slight opacity */
-            color: black;
+        #color-picker {
+            position: absolute;
+            top: 100px;
+            left: 200px;
+            background-color: white;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 10px;
+            z-index: 1000;
+            max-width: 300px;
+            max-height: 400px;
+            overflow-y: auto;
+            display: none;
+            grid-template-columns: repeat(auto-fill, 30px);
+            gap: 5px;
         }
 
-        .red {
-            color: rgba(255, 0, 0, 0.9);
+        .color-box {
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+            border: 1px solid #aaa;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+        }
+
+        .header-1 {
+            font-size: 2em;
+            font-weight: bold;
+        }
+
+        .header-2 {
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+
+        .header-3 {
+            font-size: 1.2em;
+            font-weight: bold;
         }
 
         .bold {
@@ -89,27 +135,6 @@
             font-weight: bold;
             font-style: italic;
         }
-
-        .header-1 {
-            font-size: 1.8em;
-            font-weight: bold;
-        }
-
-        .header-2 {
-            font-size: 1.5em;
-            font-weight: bold;
-        }
-
-        .header-3 {
-            font-size: 1.2em;
-            font-weight: bold;
-        }
-
-        hr {
-            border: none;
-            border-top: 2px solid red;
-            margin: 10px 0;
-        }
     </style>
 </head>
 <body>
@@ -120,87 +145,111 @@
         <button onclick="insertTag('header-1')">Header 1</button>
         <button onclick="insertTag('header-2')">Header 2</button>
         <button onclick="insertTag('header-3')">Header 3</button>
-        <button onclick="insertTag('red')">Red Text</button>
-        <button onclick="insertTag('hex')">Hex Color</button>
+        <button onclick="toggleColorPicker()">Color Picker</button>
+        <button onclick="insertHexColor()">Hex Color</button>
         <button onclick="insertTag('bullet')">Bullet</button>
-        <button onclick="render()">Render</button>
     </div>
 
     <textarea id="editor" placeholder="Type your formatted document here..."></textarea>
 
-    <div id="render"></div>
-
-    <div class="image-container">
-        <img src="https://media.discordapp.net/attachments/1289342770003316889/1320274808965042197/image.png?ex=676f98bb&is=676e473b&hm=9614bb07142fe54d66ed768cbd230665ad48edbe1f2489139fd4d5e8e0cecb90&=&format=webp&quality=lossless&width=150&height=166" alt="Placeholder Image">
+    <div id="render-container">
+        <div id="render-wrapper">
+            <div id="render"></div>
+        </div>
+        <div class="image-container">
+            <p class="image-text">This isn't a 1-2-1 representation yet, block art will display better in game when using headers next to it</p>
+            <img src="https://files.catbox.moe/gws2xt.png" alt="Placeholder Image">
+            <p class="image-text">Made with love - Simon / Big Dave</p>
+        </div>
     </div>
+
+    <div id="color-picker" style="display: none;"></div>
 
     <script>
         const namedColors = {
-            "AliceBlue": "#F0F8FF", "AntiqueWhite": "#FAEBD7", "Aqua": "#00FFFF",
-            "Aquamarine": "#7FFFD4", "Azure": "#F0FFFF", "Beige": "#F5F5DC",
-            "Bisque": "#FFE4C4", "Black": "#000000", "BlanchedAlmond": "#FFEBCD",
-            "Blue": "#0000FF", "BlueViolet": "#8A2BE2", "Brown": "#A52A2A",
-            "BurlyWood": "#DEB887", "CadetBlue": "#5F9EA0", "Chartreuse": "#7FFF00",
-            "Chocolate": "#D2691E", "Coral": "#FF7F50", "CornflowerBlue": "#6495ED",
-            "Cornsilk": "#FFF8DC", "Crimson": "#DC143C", "Cyan": "#00FFFF",
-            "DarkBlue": "#00008B", "DarkCyan": "#008B8B", "DarkGoldenRod": "#B8860B",
-            "DarkGray": "#A9A9A9", "DarkGreen": "#006400", "DarkKhaki": "#BDB76B",
-            "DarkMagenta": "#8B008B", "DarkOliveGreen": "#556B2F", "DarkOrange": "#FF8C00",
-            "DarkOrchid": "#9932CC", "DarkRed": "#8B0000", "DarkSalmon": "#E9967A",
-            "DarkSeaGreen": "#8FBC8F", "DarkSlateBlue": "#483D8B", "DarkSlateGray": "#2F4F4F",
-            "DarkTurquoise": "#00CED1", "DarkViolet": "#9400D3", "DeepPink": "#FF1493",
-            "DeepSkyBlue": "#00BFFF", "DimGray": "#696969", "DodgerBlue": "#1E90FF",
-            "FireBrick": "#B22222", "FloralWhite": "#FFFAF0", "ForestGreen": "#228B22",
-            "Fuchsia": "#FF00FF", "Gainsboro": "#DCDCDC", "GhostWhite": "#F8F8FF",
-            "Gold": "#FFD700", "GoldenRod": "#DAA520", "Gray": "#808080",
-            "Green": "#008000", "GreenYellow": "#ADFF2F", "HoneyDew": "#F0FFF0",
-            "HotPink": "#FF69B4", "IndianRed": "#CD5C5C", "Indigo": "#4B0082",
-            "Ivory": "#FFFFF0", "Khaki": "#F0E68C", "Lavender": "#E6E6FA",
-            "LavenderBlush": "#FFF0F5", "LawnGreen": "#7CFC00", "LemonChiffon": "#FFFACD",
-            "LightBlue": "#ADD8E6", "LightCoral": "#F08080", "LightCyan": "#E0FFFF",
-            "LightGoldenRodYellow": "#FAFAD2", "LightGray": "#D3D3D3", "LightGreen": "#90EE90",
-            "LightPink": "#FFB6C1", "LightSalmon": "#FFA07A", "LightSeaGreen": "#20B2AA",
-            "LightSkyBlue": "#87CEFA", "LightSlateGray": "#778899", "LightSteelBlue": "#B0C4DE",
-            "LightYellow": "#FFFFE0", "Lime": "#00FF00", "LimeGreen": "#32CD32",
-            "Linen": "#FAF0E6", "Magenta": "#FF00FF", "Maroon": "#800000",
-            "MediumAquaMarine": "#66CDAA", "MediumBlue": "#0000CD", "MediumOrchid": "#BA55D3",
-            "MediumPurple": "#9370DB", "MediumSeaGreen": "#3CB371", "MediumSlateBlue": "#7B68EE",
-            "MediumSpringGreen": "#00FA9A", "MediumTurquoise": "#48D1CC", "MediumVioletRed": "#C71585",
-            "MidnightBlue": "#191970", "MintCream": "#F5FFFA", "MistyRose": "#FFE4E1",
-            "Moccasin": "#FFE4B5", "NavajoWhite": "#FFDEAD", "Navy": "#000080",
-            "OldLace": "#FDF5E6", "Olive": "#808000", "OliveDrab": "#6B8E23",
-            "Orange": "#FFA500", "OrangeRed": "#FF4500", "Orchid": "#DA70D6",
-            "PaleGoldenRod": "#EEE8AA", "PaleGreen": "#98FB98", "PaleTurquoise": "#AFEEEE",
-            "PaleVioletRed": "#DB7093", "PapayaWhip": "#FFEFD5", "PeachPuff": "#FFDAB9",
-            "Peru": "#CD853F", "Pink": "#FFC0CB", "Plum": "#DDA0DD",
-            "PowderBlue": "#B0E0E6", "Purple": "#800080", "RebeccaPurple": "#663399",
-            "Red": "#FF0000", "RosyBrown": "#BC8F8F", "RoyalBlue": "#4169E1",
-            "SaddleBrown": "#8B4513", "Salmon": "#FA8072", "SandyBrown": "#F4A460",
-            "SeaGreen": "#2E8B57", "SeaShell": "#FFF5EE", "Sienna": "#A0522D",
-            "Silver": "#C0C0C0", "SkyBlue": "#87CEEB", "SlateBlue": "#6A5ACD",
-            "SlateGray": "#708090", "Snow": "#FFFAFA", "SpringGreen": "#00FF7F",
-            "SteelBlue": "#4682B4", "Tan": "#D2B48C", "Teal": "#008080",
-            "Thistle": "#D8BFD8", "Tomato": "#FF6347", "Turquoise": "#40E0D0",
-            "Violet": "#EE82EE", "Wheat": "#F5DEB3", "White": "#FFFFFF",
-            "WhiteSmoke": "#F5F5F5", "Yellow": "#FFFF00", "YellowGreen": "#9ACD32"
-        };
+    "Black": "#000000", "DimGray": "#696969", "Gray": "#808080", "DarkGray": "#A9A9A9",
+    "Silver": "#C0C0C0", "Gainsboro": "#DCDCDC", "WhiteSmoke": "#F5F5F5", "White": "#FFFFFF",
 
-        function render() {
-            const editorContent = document.getElementById('editor').value;
-            const renderDiv = document.getElementById('render');
-            renderDiv.innerHTML = editorContent
-                .replace(/\[bold\](.*?)\[\/bold\]/gs, '<span class="bold">$1</span>')
-                .replace(/\[italic\](.*?)\[\/italic\]/gs, '<span class="italic">$1</span>')
-                .replace(/\[bolditalic\](.*?)\[\/bolditalic\]/gs, '<span class="bolditalic">$1</span>')
-                .replace(/\[head=1\](.*?)\[\/head\]/gs, '<span class="header-1">$1</span>')
-                .replace(/\[head=2\](.*?)\[\/head\]/gs, '<span class="header-2">$1</span>')
-                .replace(/\[head=3\](.*?)\[\/head\]/gs, '<span class="header-3">$1</span>')
-                .replace(/\[bullet\/\]/gs, '• ')
-                .replace(/\[color=([a-zA-Z]+)\](.*?)\[\/color\]/gs, (_, color, text) => {
-                    const hex = namedColors[color] || color;
-                    return `<span style="color:${hex}">${text}</span>`;
-                })
-                .replace(/\[color=#([0-9A-Fa-f]{6})\](.*?)\[\/color\]/gs, '<span style="color:#$1">$2</span>');
+    "DarkRed": "#8B0000", "FireBrick": "#B22222", "IndianRed": "#CD5C5C",
+    "Crimson": "#DC143C", "Red": "#FF0000", "Tomato": "#FF6347", "OrangeRed": "#FF4500",
+    "DarkOrange": "#FF8C00", "Coral": "#FF7F50", "LightCoral": "#F08080",
+
+    "Chocolate": "#D2691E", "SaddleBrown": "#8B4513", "Sienna": "#A0522D",
+    "Brown": "#A52A2A", "RosyBrown": "#BC8F8F", "Peru": "#CD853F", "SandyBrown": "#F4A460",
+    "GoldenRod": "#DAA520", "DarkGoldenRod": "#B8860B", "Gold": "#FFD700", "Yellow": "#FFFF00",
+
+    "Khaki": "#F0E68C", "DarkKhaki": "#BDB76B", "PaleGoldenRod": "#EEE8AA",
+    "LightGoldenRodYellow": "#FAFAD2", "LemonChiffon": "#FFFACD", "LightYellow": "#FFFFE0",
+
+    "Olive": "#808000", "DarkOliveGreen": "#556B2F", "OliveDrab": "#6B8E23",
+    "DarkGreen": "#006400", "Green": "#008000", "ForestGreen": "#228B22",
+    "SeaGreen": "#2E8B57", "MediumSeaGreen": "#3CB371", "LightSeaGreen": "#20B2AA",
+    "SpringGreen": "#00FF7F", "LawnGreen": "#7CFC00", "Chartreuse": "#7FFF00",
+    "GreenYellow": "#ADFF2F", "LimeGreen": "#32CD32", "Lime": "#00FF00",
+    "PaleGreen": "#98FB98", "LightGreen": "#90EE90", "MediumSpringGreen": "#00FA9A",
+
+    "Teal": "#008080", "DarkCyan": "#008B8B", "MediumTurquoise": "#48D1CC",
+    "Turquoise": "#40E0D0", "LightSeaGreen": "#20B2AA", "DarkTurquoise": "#00CED1",
+    "Aqua": "#00FFFF", "Cyan": "#00FFFF", "Aquamarine": "#7FFFD4",
+    "PaleTurquoise": "#AFEEEE", "PowderBlue": "#B0E0E6", "LightBlue": "#ADD8E6",
+    "SkyBlue": "#87CEEB", "DeepSkyBlue": "#00BFFF", "DodgerBlue": "#1E90FF",
+    "CornflowerBlue": "#6495ED", "SteelBlue": "#4682B4", "RoyalBlue": "#4169E1",
+    "Blue": "#0000FF", "MediumBlue": "#0000CD", "DarkBlue": "#00008B",
+    "Navy": "#000080", "MidnightBlue": "#191970",
+
+    "Indigo": "#4B0082", "DarkSlateBlue": "#483D8B", "SlateBlue": "#6A5ACD",
+    "MediumSlateBlue": "#7B68EE", "MediumPurple": "#9370DB", "BlueViolet": "#8A2BE2",
+    "DarkViolet": "#9400D3", "DarkOrchid": "#9932CC", "MediumOrchid": "#BA55D3",
+    "Purple": "#800080", "RebeccaPurple": "#663399", "Fuchsia": "#FF00FF",
+    "Magenta": "#FF00FF", "Orchid": "#DA70D6", "Violet": "#EE82EE",
+    "Plum": "#DDA0DD", "Thistle": "#D8BFD8", "Lavender": "#E6E6FA",
+
+    "PeachPuff": "#FFDAB9", "Moccasin": "#FFE4B5", "NavajoWhite": "#FFDEAD",
+    "Bisque": "#FFE4C4", "BlanchedAlmond": "#FFEBCD", "Cornsilk": "#FFF8DC",
+    "PapayaWhip": "#FFEFD5", "AntiqueWhite": "#FAEBD7", "FloralWhite": "#FFFAF0",
+    "Ivory": "#FFFFF0", "Beige": "#F5F5DC", "Linen": "#FAF0E6",
+    "OldLace": "#FDF5E6", "WhiteSmoke": "#F5F5F5", "GhostWhite": "#F8F8FF",
+    "AliceBlue": "#F0F8FF",
+};
+
+        function initializeColorPicker() {
+            const picker = document.getElementById('color-picker');
+            picker.innerHTML = '';
+            for (const [name, hex] of Object.entries(namedColors)) {
+                const box = document.createElement('div');
+                box.className = 'color-box';
+                box.style.backgroundColor = hex;
+                box.title = name;
+                box.onclick = () => insertColor(name);
+                picker.appendChild(box);
+            }
+        }
+
+        function toggleColorPicker() {
+            const picker = document.getElementById('color-picker');
+            picker.style.display = picker.style.display === 'none' ? 'grid' : 'none';
+        }
+
+        function insertColor(colorName) {
+            const editor = document.getElementById('editor');
+            const start = editor.selectionStart;
+            const end = editor.selectionEnd;
+            const selectedText = editor.value.substring(start, end);
+
+            const before = editor.value.substring(0, start);
+            const after = editor.value.substring(end);
+
+            editor.value = `${before}[color=${colorName}]${selectedText}[/color]${after}`;
+            document.getElementById('color-picker').style.display = 'none';
+        }
+
+        function insertHexColor() {
+            const hexColor = prompt("Enter a hex color code (e.g., #FF5733):");
+            if (hexColor && /^#[0-9A-Fa-f]{6}$/.test(hexColor)) {
+                insertColor(hexColor);
+            } else {
+                alert("Invalid hex code!");
+            }
         }
 
         function insertTag(tag) {
@@ -236,24 +285,6 @@
                     openTag = '[head=3]';
                     closeTag = '[/head]';
                     break;
-                case 'bullet':
-                    openTag = '[bullet/] ';
-                    closeTag = '';
-                    break;
-                case 'red':
-                    openTag = '[color=red]';
-                    closeTag = '[/color]';
-                    break;
-                case 'hex':
-                    const hexColor = prompt("Enter a hex color code (e.g., #FF5733):");
-                    if (hexColor && /^#[0-9A-Fa-f]{6}$/.test(hexColor)) {
-                        openTag = `[color=${hexColor}]`;
-                        closeTag = '[/color]';
-                    } else {
-                        alert("Invalid hex code!");
-                        return;
-                    }
-                    break;
             }
 
             const before = editor.value.substring(0, start);
@@ -261,6 +292,27 @@
 
             editor.value = before + openTag + selectedText + closeTag + after;
         }
+
+        document.getElementById('editor').addEventListener('input', () => {
+            const editorContent = document.getElementById('editor').value;
+            const renderDiv = document.getElementById('render');
+            renderDiv.innerHTML = editorContent
+                .replace(/\[bold\](.*?)\[\/bold\]/gs, '<span class="bold">$1</span>')
+                .replace(/\[italic\](.*?)\[\/italic\]/gs, '<span class="italic">$1</span>')
+                .replace(/\[bolditalic\](.*?)\[\/bolditalic\]/gs, '<span class="bolditalic">$1</span>')
+                .replace(/\[head=1\](.*?)\[\/head\]/gs, '<span class="header-1">$1</span>')
+                .replace(/\[head=2\](.*?)\[\/head\]/gs, '<span class="header-2">$1</span>')
+                .replace(/\[head=3\](.*?)\[\/head\]/gs, '<span class="header-3">$1</span>')
+                .replace(/\[bullet\/\]/gs, '• ')
+                .replace(/\[color=([a-zA-Z]+)\](.*?)\[\/color\]/gs, (_, color, text) => {
+                    const hex = namedColors[color] || color;
+                    return `<span style="color:${hex}">${text}</span>`;
+                })
+                .replace(/\[color=#([0-9A-Fa-f]{6})\](.*?)\[\/color\]/gs, '<span style="color:#$1">$2</span>');
+        });
+
+        // Initialize the color picker on page load
+        initializeColorPicker();
     </script>
 </body>
 </html>
