@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SS14 Document Formatter</title>
     <style>
+        /* General page styles */
         body {
             display: flex;
             flex-direction: row;
@@ -14,6 +15,7 @@
             height: 100vh;
         }
 
+        /* Toolbar styles */
         #toolbar {
             display: flex;
             flex-direction: column;
@@ -25,8 +27,9 @@
             box-sizing: border-box;
         }
 
+        /* Editor styles */
         #editor {
-            flex: 2;
+            flex: 3;
             padding: 15px;
             white-space: pre-wrap;
             overflow-wrap: break-word;
@@ -38,6 +41,7 @@
             resize: none;
         }
 
+        /* Render container and wrapper styles */
         #render-container {
             display: flex;
             flex-direction: row;
@@ -48,14 +52,15 @@
         }
 
         #render-wrapper {
-            display: inline-block; /* Shrinks width to match content */
+            display: inline-block;
         }
 
         #render {
+            width: 540px; /* Fixed width for the render area */
             padding: 20px;
             background-color: #fff9e5;
             font-family: 'Noto Sans', Arial, sans-serif;
-            white-space: pre-wrap;
+            white-space: pre-wrap; /* Preserve text wrapping */
             word-wrap: break-word;
             line-height: 1.2;
             overflow-y: auto;
@@ -66,6 +71,7 @@
             margin-right: 20px;
         }
 
+        /* Image container styles */
         .image-container {
             width: 300px;
             text-align: center;
@@ -83,6 +89,7 @@
             color: #333;
         }
 
+        /* Color picker styles */
         #color-picker {
             position: absolute;
             top: 100px;
@@ -108,21 +115,26 @@
             box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
         }
 
+        /* Header styles */
         .header-1 {
             font-size: 2em;
             font-weight: bold;
+            line-height: 0.75; /* Adjusted for consistent spacing */
         }
 
         .header-2 {
             font-size: 1.5em;
             font-weight: bold;
+            line-height: 0.85; /* Adjusted for consistent spacing */
         }
 
         .header-3 {
             font-size: 1.2em;
             font-weight: bold;
+            line-height: 0.95; /* Adjusted for consistent spacing */
         }
 
+        /* Text formatting styles */
         .bold {
             font-weight: bold;
         }
@@ -138,6 +150,7 @@
     </style>
 </head>
 <body>
+    <!-- Toolbar with buttons for formatting -->
     <div id="toolbar">
         <button onclick="insertTag('bold')">Bold</button>
         <button onclick="insertTag('italic')">Italic</button>
@@ -150,8 +163,10 @@
         <button onclick="insertTag('bullet')">Bullet</button>
     </div>
 
+    <!-- Editor for user input -->
     <textarea id="editor" placeholder="Type your formatted document here..."></textarea>
 
+    <!-- Render area for preview -->
     <div id="render-container">
         <div id="render-wrapper">
             <div id="render"></div>
@@ -159,16 +174,15 @@
         <div class="image-container">
             <p class="image-text">This isn't a 1-2-1 representation yet, block art displays a bit odd next to headers, and underscores display a bit too long.</p>
             <img src="https://files.catbox.moe/gws2xt.png" alt="Placeholder Image">
-            <p class="image-text">Made with love - Simon / Big Dave
-
-            <br>Special thanks to the the RMC14 community.
-            </p>
+            <p class="image-text">Made with love - Simon / Big Dave<br>Special thanks to the the RMC14 community.</p>
         </div>
     </div>
 
+    <!-- Hidden color picker -->
     <div id="color-picker" style="display: none;"></div>
 
     <script>
+        // Define supported named colors
         const namedColors = {
     "Black": "#000000", "DimGray": "#696969", "Gray": "#808080", "DarkGray": "#A9A9A9",
     "Silver": "#C0C0C0", "Gainsboro": "#DCDCDC", "WhiteSmoke": "#F5F5F5", "White": "#FFFFFF",
@@ -215,6 +229,7 @@
     "AliceBlue": "#F0F8FF",
 };
 
+        // Initialize the color picker
         function initializeColorPicker() {
             const picker = document.getElementById('color-picker');
             picker.innerHTML = '';
@@ -228,11 +243,13 @@
             }
         }
 
+        // Toggle color picker visibility
         function toggleColorPicker() {
             const picker = document.getElementById('color-picker');
             picker.style.display = picker.style.display === 'none' ? 'grid' : 'none';
         }
 
+        // Insert a color tag
         function insertColor(colorName) {
             const editor = document.getElementById('editor');
             const start = editor.selectionStart;
@@ -246,15 +263,17 @@
             document.getElementById('color-picker').style.display = 'none';
         }
 
+        // Insert a hex color tag
         function insertHexColor() {
             const hexColor = prompt("Enter a hex color code (e.g., #FF5733):");
-            if (hexColor && /^#[0-9A-Fa-f]{6}$/.test(hexColor)) {
+            if (hexColor && /^#[0-9A-Fa-f]{3,8}$/.test(hexColor)) {
                 insertColor(hexColor);
             } else {
-                alert("Invalid hex code!");
+                alert("Invalid hex code! Use formats like #RGB, #RRGGBB, #RGBA, or #RRGGBBAA.");
             }
         }
 
+        // Insert a formatting tag
         function insertTag(tag) {
             const editor = document.getElementById('editor');
             const start = editor.selectionStart;
@@ -296,22 +315,23 @@
             editor.value = before + openTag + selectedText + closeTag + after;
         }
 
+        // Live rendering of content
         document.getElementById('editor').addEventListener('input', () => {
             const editorContent = document.getElementById('editor').value;
             const renderDiv = document.getElementById('render');
             renderDiv.innerHTML = editorContent
-                .replace(/\[bold\](.*?)\[\/bold\]/gs, '<span class="bold">$1</span>')
-                .replace(/\[italic\](.*?)\[\/italic\]/gs, '<span class="italic">$1</span>')
-                .replace(/\[bolditalic\](.*?)\[\/bolditalic\]/gs, '<span class="bolditalic">$1</span>')
-                .replace(/\[head=1\](.*?)\[\/head\]/gs, '<span class="header-1">$1</span>')
-                .replace(/\[head=2\](.*?)\[\/head\]/gs, '<span class="header-2">$1</span>')
-                .replace(/\[head=3\](.*?)\[\/head\]/gs, '<span class="header-3">$1</span>')
-                .replace(/\[bullet\/\]/gs, '• ')
+                .replace(/\[bold\](.*?)\[\/bold\]/gs, '<span class="bold">$1</span>') // Bold text
+                .replace(/\[italic\](.*?)\[\/italic\]/gs, '<span class="italic">$1</span>') // Italic text
+                .replace(/\[bolditalic\](.*?)\[\/bolditalic\]/gs, '<span class="bolditalic">$1</span>') // Bold Italic text
+                .replace(/\[head=1\](.*?)\[\/head\]/gs, '<span class="header-1">$1</span>') // Header 1
+                .replace(/\[head=2\](.*?)\[\/head\]/gs, '<span class="header-2">$1</span>') // Header 2
+                .replace(/\[head=3\](.*?)\[\/head\]/gs, '<span class="header-3">$1</span>') // Header 3
+                .replace(/\[bullet\/\]/gs, '• ') // Bullet point
                 .replace(/\[color=([a-zA-Z]+)\](.*?)\[\/color\]/gs, (_, color, text) => {
-                    const hex = namedColors[color] || color;
+                    const hex = namedColors[color] || color; // Handle named colors or hex
                     return `<span style="color:${hex}">${text}</span>`;
                 })
-                .replace(/\[color=#([0-9A-Fa-f]{6})\](.*?)\[\/color\]/gs, '<span style="color:#$1">$2</span>');
+                .replace(/\[color=#([0-9A-Fa-f]{3,8})\](.*?)\[\/color\]/gs, '<span style="color:#$1">$2</span>'); // Hex colors
         });
 
         // Initialize the color picker on page load
