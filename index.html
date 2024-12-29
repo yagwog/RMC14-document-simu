@@ -257,75 +257,106 @@
 
     // Insert a color tag
     function insertColor(colorName) {
-        const editor = document.getElementById('editor');
-        const start = editor.selectionStart;
-        const end = editor.selectionEnd;
-        const selectedText = editor.value.substring(start, end);
+    const editor = document.getElementById('editor');
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
+    const selectedText = editor.value.substring(start, end);
 
-        const before = editor.value.substring(0, start);
-        const after = editor.value.substring(end);
+    const before = editor.value.substring(0, start);
+    const after = editor.value.substring(end);
 
-        editor.value = `${before}[color=${colorName}]${selectedText}[/color]${after}`;
-        document.getElementById('color-picker').style.display = 'none';
+    // Insert the color tag and position the cursor between the tags
+    const colorTag = `[color=${colorName}]`;
+    editor.value = `${before}${colorTag}${selectedText}[/color]${after}`;
+    const cursorPosition = start + colorTag.length;
+    editor.setSelectionRange(cursorPosition, cursorPosition + selectedText.length);
+    editor.focus();
+
+    document.getElementById('color-picker').style.display = 'none';
         updateRender(); // Trigger render update
     }
 
     // Insert a formatting tag
     function insertTag(tag) {
-        saveToHistory(); // Save state for undo functionality
+    const editor = document.getElementById('editor');
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
+    const selectedText = editor.value.substring(start, end);
 
-        const editor = document.getElementById('editor');
-        const start = editor.selectionStart;
-        const end = editor.selectionEnd;
-        const selectedText = editor.value.substring(start, end);
+    let openTag = '', closeTag = '';
 
-        let openTag = '', closeTag = '';
-        switch (tag) {
-            case 'bold': openTag = '[bold]'; closeTag = '[/bold]'; break;
-            case 'italic': openTag = '[italic]'; closeTag = '[/italic]'; break;
-            case 'bolditalic': openTag = '[bolditalic]'; closeTag = '[/bolditalic]'; break;
-            case 'header-1': openTag = '[head=1]'; closeTag = '[/head]'; break;
-            case 'header-2': openTag = '[head=2]'; closeTag = '[/head]'; break;
-            case 'header-3': openTag = '[head=3]'; closeTag = '[/head]'; break;
-            case 'bullet': openTag = '[bullet/] '; closeTag = ''; // No closing tag for bullets
+    switch (tag) {
+        case 'bold':
+            openTag = '[bold]';
+            closeTag = '[/bold]';
             break;
-        }
+        case 'italic':
+            openTag = '[italic]';
+            closeTag = '[/italic]';
+            break;
+        case 'bolditalic':
+            openTag = '[bolditalic]';
+            closeTag = '[/bolditalic]';
+            break;
+        case 'header-1':
+            openTag = '[head=1]';
+            closeTag = '[/head]';
+            break;
+        case 'header-2':
+            openTag = '[head=2]';
+            closeTag = '[/head]';
+            break;
+        case 'header-3':
+            openTag = '[head=3]';
+            closeTag = '[/head]';
+            break;
+    }
 
-        const before = editor.value.substring(0, start);
-        const after = editor.value.substring(end);
+    const before = editor.value.substring(0, start);
+    const after = editor.value.substring(end);
 
-        editor.value = before + openTag + selectedText + closeTag + after;
+    // Insert the tags and position the cursor between them
+    editor.value = before + openTag + selectedText + closeTag + after;
+    const cursorPosition = start + openTag.length;
+    editor.setSelectionRange(cursorPosition, cursorPosition + selectedText.length);
+    editor.focus();
+
         updateRender(); // Trigger render update
     }
 
-    // Center text (handles multiple lines)
     function centerText() {
     const editor = document.getElementById('editor');
-    const totalWidth = 80; // Total width in characters (adjust as needed)
+    const totalWidth = 80; // Total width for centering (adjust as needed for the input layout)
 
-    // Get the selection start and end positions
+    // Get the selection start and end
     const start = editor.selectionStart;
     const end = editor.selectionEnd;
 
-    // Get the selected text and split it into lines
+    // Extract selected text
     const selectedText = editor.value.substring(start, end);
+
+    if (!selectedText.trim()) {
+        alert("Please select some text to center.");
+        return;
+    }
+
+    // Split selected text into lines
     const lines = selectedText.split("\n");
 
-    // Center each line
+    // Center each line individually
     const centeredLines = lines.map(line => {
-        const trimmedLine = line.trim(); // Remove extra spaces
-        const textLength = trimmedLine.length;
+        const textLength = line.trim().length; // Trim to exclude leading/trailing spaces
         const spacesNeeded = Math.max(0, Math.floor((totalWidth - textLength) / 2));
-        return " ".repeat(spacesNeeded) + trimmedLine;
+        return " ".repeat(spacesNeeded) + line.trim();
     });
 
-    // Replace the selected text with the centered lines
+    // Replace the selected text with the centered text
     const centeredText = centeredLines.join("\n");
     const before = editor.value.substring(0, start);
     const after = editor.value.substring(end);
     editor.value = before + centeredText + after;
 
-    // Adjust the cursor position to cover the new selection
+    // Re-select the centered text
     editor.setSelectionRange(start, start + centeredText.length);
 
     // Update the render preview
@@ -358,7 +389,6 @@ function saveTextAsFile() {
     URL.revokeObjectURL(downloadLink.href);
 }
 
-
 // Update the render preview
 function updateRender() {
     const editorContent = document.getElementById('editor').value;
@@ -378,8 +408,6 @@ function updateRender() {
         })
         .replace(/\[color=#([0-9A-Fa-f]{3,8})\](.*?)\[\/color\]/gs, '<span style="color:#$1">$2</span>'); // Hex colors
 }
-
-
 
     // Keybinds for formatting and undo
     document.addEventListener('keydown', (event) => {
