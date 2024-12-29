@@ -161,6 +161,10 @@
         <button onclick="toggleColorPicker()">Color Picker</button>
         <button onclick="insertHexColor()">Hex Color</button>
         <button onclick="insertTag('bullet')">Bullet</button>
+        <button onclick="centerText()">Center Text</button>
+        <button onclick="saveTextAsFile()">Save as .txt</button>
+
+
     </div>
 
     <!-- Editor for user input -->
@@ -175,7 +179,7 @@
             <p class="image-text">This isn't a 1-2-1 representation yet, block art displays a bit odd next to headers, and underscores display a bit too long.</p>
             <img src="https://files.catbox.moe/gws2xt.png" alt="Placeholder Image">
             <p class="image-text">Made with love - Simon / Big Dave<br>Special thanks to the the RMC14 community.</p>
-            <p class="image-text">#to-do: Include a feature to select templates from a repo, tune the render better, add a center button</p>
+            <p class="image-text">#to-do: Include a feature to select templates from a repo, tune the render better, refine center feature</p>
             <p class="image-text">Please give me feedback as well as tips.</p>
         </div>
     </div>
@@ -232,112 +236,185 @@
 };
 
         // Initialize the color picker
-        function initializeColorPicker() {
-            const picker = document.getElementById('color-picker');
-            picker.innerHTML = '';
-            for (const [name, hex] of Object.entries(namedColors)) {
-                const box = document.createElement('div');
-                box.className = 'color-box';
-                box.style.backgroundColor = hex;
-                box.title = name;
-                box.onclick = () => insertColor(name);
-                picker.appendChild(box);
+    function initializeColorPicker() {
+        const picker = document.getElementById('color-picker');
+        picker.innerHTML = '';
+        for (const [name, hex] of Object.entries(namedColors)) {
+            const box = document.createElement('div');
+            box.className = 'color-box';
+            box.style.backgroundColor = hex;
+            box.title = name;
+            box.onclick = () => insertColor(name);
+            picker.appendChild(box);
+        }
+    }
+
+    // Toggle color picker visibility
+    function toggleColorPicker() {
+        const picker = document.getElementById('color-picker');
+        picker.style.display = picker.style.display === 'none' ? 'grid' : 'none';
+    }
+
+    // Insert a color tag
+    function insertColor(colorName) {
+        const editor = document.getElementById('editor');
+        const start = editor.selectionStart;
+        const end = editor.selectionEnd;
+        const selectedText = editor.value.substring(start, end);
+
+        const before = editor.value.substring(0, start);
+        const after = editor.value.substring(end);
+
+        editor.value = `${before}[color=${colorName}]${selectedText}[/color]${after}`;
+        document.getElementById('color-picker').style.display = 'none';
+        updateRender(); // Trigger render update
+    }
+
+    // Insert a formatting tag
+    function insertTag(tag) {
+        saveToHistory(); // Save state for undo functionality
+
+        const editor = document.getElementById('editor');
+        const start = editor.selectionStart;
+        const end = editor.selectionEnd;
+        const selectedText = editor.value.substring(start, end);
+
+        let openTag = '', closeTag = '';
+        switch (tag) {
+            case 'bold': openTag = '[bold]'; closeTag = '[/bold]'; break;
+            case 'italic': openTag = '[italic]'; closeTag = '[/italic]'; break;
+            case 'bolditalic': openTag = '[bolditalic]'; closeTag = '[/bolditalic]'; break;
+            case 'header-1': openTag = '[head=1]'; closeTag = '[/head]'; break;
+            case 'header-2': openTag = '[head=2]'; closeTag = '[/head]'; break;
+            case 'header-3': openTag = '[head=3]'; closeTag = '[/head]'; break;
+            case 'bullet': openTag = '[bullet/] '; closeTag = ''; // No closing tag for bullets
+            break;
+        }
+
+        const before = editor.value.substring(0, start);
+        const after = editor.value.substring(end);
+
+        editor.value = before + openTag + selectedText + closeTag + after;
+        updateRender(); // Trigger render update
+    }
+
+    // Center text (handles multiple lines)
+    function centerText() {
+    const editor = document.getElementById('editor');
+    const totalWidth = 80; // Total width in characters (adjust as needed)
+
+    // Get the selection start and end positions
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
+
+    // Get the selected text and split it into lines
+    const selectedText = editor.value.substring(start, end);
+    const lines = selectedText.split("\n");
+
+    // Center each line
+    const centeredLines = lines.map(line => {
+        const trimmedLine = line.trim(); // Remove extra spaces
+        const textLength = trimmedLine.length;
+        const spacesNeeded = Math.max(0, Math.floor((totalWidth - textLength) / 2));
+        return " ".repeat(spacesNeeded) + trimmedLine;
+    });
+
+    // Replace the selected text with the centered lines
+    const centeredText = centeredLines.join("\n");
+    const before = editor.value.substring(0, start);
+    const after = editor.value.substring(end);
+    editor.value = before + centeredText + after;
+
+    // Adjust the cursor position to cover the new selection
+    editor.setSelectionRange(start, start + centeredText.length);
+
+    // Update the render preview
+    updateRender();
+}
+
+function saveTextAsFile() {
+    // Get the content of the editor
+    const editorContent = document.getElementById('editor').value;
+
+    // Prompt the user to enter a file name
+    const fileName = prompt("Enter a name for your file (without extension):", "my_document");
+    if (!fileName) {
+        alert("File name is required to save the file.");
+        return;
+    }
+
+    // Create a Blob with the content and type
+    const blob = new Blob([editorContent], { type: "text/plain" });
+
+    // Create a temporary anchor element to trigger download
+    const downloadLink = document.createElement("a");
+    downloadLink.href = URL.createObjectURL(blob);
+    downloadLink.download = `${fileName}.txt`;
+
+    // Programmatically click the anchor to start the download
+    downloadLink.click();
+
+    // Revoke the URL object to free memory
+    URL.revokeObjectURL(downloadLink.href);
+}
+
+
+// Update the render preview
+function updateRender() {
+    const editorContent = document.getElementById('editor').value;
+    const renderDiv = document.getElementById('render');
+    renderDiv.innerHTML = editorContent
+        .replace(/\[bold\](.*?)\[\/bold\]/gs, '<span class="bold">$1</span>') // Bold text
+        .replace(/\[italic\](.*?)\[\/italic\]/gs, '<span class="italic">$1</span>') // Italic text
+        .replace(/\[bolditalic\](.*?)\[\/bolditalic\]/gs, '<span class="bolditalic">$1</span>') // Bold Italic text
+        .replace(/\[head=1\](.*?)\[\/head\]/gs, '<span class="header-1">$1</span>') // Header 1
+        .replace(/\[head=2\](.*?)\[\/head\]/gs, '<span class="header-2">$1</span>') // Header 2
+        .replace(/\[head=3\](.*?)\[\/head\]/gs, '<span class="header-3">$1</span>') // Header 3
+        .replace(/\[bullet\/\]/gs, '• ') // Bullet point ([bullet/])
+        .replace(/\[bullet\]/gs, '• ') // Bullet point ([bullet])
+        .replace(/\[color=([a-zA-Z]+)\](.*?)\[\/color\]/gs, (_, color, text) => {
+            const hex = namedColors[color] || color; // Handle named colors or hex
+            return `<span style="color:${hex}">${text}</span>`;
+        })
+        .replace(/\[color=#([0-9A-Fa-f]{3,8})\](.*?)\[\/color\]/gs, '<span style="color:#$1">$2</span>'); // Hex colors
+}
+
+
+
+    // Keybinds for formatting and undo
+    document.addEventListener('keydown', (event) => {
+        const editor = document.getElementById('editor');
+        if (event.ctrlKey) {
+            switch (event.key.toLowerCase()) {
+                case 'b': event.preventDefault(); insertTag('bold'); break;
+                case 'i': event.preventDefault(); insertTag('italic'); break;
+                case 'z': event.preventDefault(); undoLastChange(); break;
             }
         }
+    });
 
-        // Toggle color picker visibility
-        function toggleColorPicker() {
-            const picker = document.getElementById('color-picker');
-            picker.style.display = picker.style.display === 'none' ? 'grid' : 'none';
+    // Undo functionality
+    const history = [];
+    function saveToHistory() {
+        const editor = document.getElementById('editor');
+        history.push(editor.value);
+        if (history.length > 20) history.shift(); // Limit history size
+    }
+
+    function undoLastChange() {
+        const editor = document.getElementById('editor');
+        if (history.length > 0) {
+            editor.value = history.pop();
+            updateRender();
         }
+    }
 
-        // Insert a color tag
-        function insertColor(colorName) {
-            const editor = document.getElementById('editor');
-            const start = editor.selectionStart;
-            const end = editor.selectionEnd;
-            const selectedText = editor.value.substring(start, end);
-
-            const before = editor.value.substring(0, start);
-            const after = editor.value.substring(end);
-
-            editor.value = `${before}[color=${colorName}]${selectedText}[/color]${after}`;
-            document.getElementById('color-picker').style.display = 'none';
-        }
-
-        // Insert a hex color tag
-        function insertHexColor() {
-            const hexColor = prompt("Enter a hex color code (e.g., #FF5733):");
-            if (hexColor && /^#[0-9A-Fa-f]{3,8}$/.test(hexColor)) {
-                insertColor(hexColor);
-            } else {
-                alert("Invalid hex code! Use formats like #RGB, #RRGGBB, #RGBA, or #RRGGBBAA.");
-            }
-        }
-
-        // Insert a formatting tag
-        function insertTag(tag) {
-            const editor = document.getElementById('editor');
-            const start = editor.selectionStart;
-            const end = editor.selectionEnd;
-            const selectedText = editor.value.substring(start, end);
-
-            let openTag = '', closeTag = '';
-
-            switch (tag) {
-                case 'bold':
-                    openTag = '[bold]';
-                    closeTag = '[/bold]';
-                    break;
-                case 'italic':
-                    openTag = '[italic]';
-                    closeTag = '[/italic]';
-                    break;
-                case 'bolditalic':
-                    openTag = '[bolditalic]';
-                    closeTag = '[/bolditalic]';
-                    break;
-                case 'header-1':
-                    openTag = '[head=1]';
-                    closeTag = '[/head]';
-                    break;
-                case 'header-2':
-                    openTag = '[head=2]';
-                    closeTag = '[/head]';
-                    break;
-                case 'header-3':
-                    openTag = '[head=3]';
-                    closeTag = '[/head]';
-                    break;
-            }
-
-            const before = editor.value.substring(0, start);
-            const after = editor.value.substring(end);
-
-            editor.value = before + openTag + selectedText + closeTag + after;
-        }
-
-        // Live rendering of content
-        document.getElementById('editor').addEventListener('input', () => {
-            const editorContent = document.getElementById('editor').value;
-            const renderDiv = document.getElementById('render');
-            renderDiv.innerHTML = editorContent
-                .replace(/\[bold\](.*?)\[\/bold\]/gs, '<span class="bold">$1</span>') // Bold text
-                .replace(/\[italic\](.*?)\[\/italic\]/gs, '<span class="italic">$1</span>') // Italic text
-                .replace(/\[bolditalic\](.*?)\[\/bolditalic\]/gs, '<span class="bolditalic">$1</span>') // Bold Italic text
-                .replace(/\[head=1\](.*?)\[\/head\]/gs, '<span class="header-1">$1</span>') // Header 1
-                .replace(/\[head=2\](.*?)\[\/head\]/gs, '<span class="header-2">$1</span>') // Header 2
-                .replace(/\[head=3\](.*?)\[\/head\]/gs, '<span class="header-3">$1</span>') // Header 3
-                .replace(/\[bullet\/\]/gs, '• ') // Bullet point
-                .replace(/\[color=([a-zA-Z]+)\](.*?)\[\/color\]/gs, (_, color, text) => {
-                    const hex = namedColors[color] || color; // Handle named colors or hex
-                    return `<span style="color:${hex}">${text}</span>`;
-                })
-                .replace(/\[color=#([0-9A-Fa-f]{3,8})\](.*?)\[\/color\]/gs, '<span style="color:#$1">$2</span>'); // Hex colors
-        });
-
-        // Initialize the color picker on page load
-        initializeColorPicker();
-    </script>
+    // Initialize color picker and save initial state
+    initializeColorPicker();
+    document.getElementById('editor').addEventListener('input', () => {
+        saveToHistory();
+        updateRender();
+    });
+</script>
 </body>
 </html>
