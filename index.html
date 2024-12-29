@@ -390,7 +390,6 @@ function saveTextAsFile() {
 }
 
 // Update the render preview
-// Update the render preview
 function updateRender() {
     const editorContent = document.getElementById('editor').value;
     const renderDiv = document.getElementById('render');
@@ -403,12 +402,19 @@ function updateRender() {
         .replace(/\[head=3\](.*?)\[\/head\]/gs, '<span class="header-3">$1</span>') // Header 3
         .replace(/\[bullet\/\]/gs, '• ') // Bullet point ([bullet/])
         .replace(/\[bullet\]/gs, '• ') // Bullet point ([bullet])
-        .replace(/\[color=([a-zA-Z]+)\](.*?)($|\[\/color\])/gs, (_, color, text) => {
-            const hex = namedColors[color] || color; // Handle named colors or hex
+        .replace(/\[color=([a-zA-Z]+)\](.*?)\[\/color\]/gs, (_, color, text) => {
+            const hex = namedColors[color] || color; // Handle named colors
             return `<span style="color:${hex}">${text}</span>`;
         })
-        .replace(/\[color=#([0-9A-Fa-f]{3,8})\](.*?)($|\[\/color\])/gs, '<span style="color:#$1">$2</span>'); // Hex colors
+        .replace(/\[color=([a-zA-Z]+)\](.*?)($|(?=\[))/gs, (_, color, text) => {
+            const hex = namedColors[color] || color; // Handle open color tags
+            return `<span style="color:${hex}">${text}</span>`;
+        })
+        .replace(/\[color=#([0-9A-Fa-f]{3,8})\](.*?)\[\/color\]/gs, '<span style="color:#$1">$2</span>') // Closed hex colors
+        .replace(/\[color=#([0-9A-Fa-f]{3,8})\](.*?)(?=$|\[)/gs, '<span style="color:#$1">$2</span>'); // Open hex colors
 }
+
+
 
     // Keybinds for formatting and undo
     document.addEventListener('keydown', (event) => {
