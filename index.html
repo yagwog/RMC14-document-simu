@@ -1,5 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -15,6 +17,37 @@
             height: 100vh;
         }
         
+/* Normal text should be in Noto Sans */
+.normal-text {
+    font-family: 'Noto Sans', Arial, sans-serif;
+    line-height: 1.2;
+    letter-spacing: 0.05em;
+    display: inline; /*  Ensure inline behavior */
+}
+
+/* Box-drawing and ASCII characters */
+.ascii-art {
+    font-family: "Courier New", Consolas, monospace !important;
+    font-size: 1em;
+    white-space: pre;
+    word-wrap: normal;
+    display: inline-block; /*  Ensures characters align properly */
+}
+
+/* Monospace only inside [mono] */
+.monospace {
+    font-family: "Courier New", Consolas, monospace !important; /*  Ensures only inside [mono] */
+    font-variant-ligatures: none;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.05em;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-weight: 500;
+    display: inline; /*  Prevent block behavior */
+}
+
+
+
         /* Toolbar styles */
         #toolbar {
             display: flex;
@@ -57,21 +90,24 @@
         }
         
         #render {
-            width: 100%; /* Make render fill the available space */
-            max-width: 540px; /* Add a max width for readability */
-            padding: 20px;
-            background-color: #fff9e5;
-            font-family: 'Noto Sans', Arial, sans-serif;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            line-height: 1.2;
-            overflow-y: auto;
-            box-sizing: border-box;
-            border-radius: 40px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-            border: 1px solid #ddd;
-            color: #000;
-        }
+        width: 100%; /* Make render fill the available space */
+        min-width: 540px;
+        max-width: 540px; /* Add a max width for readability */
+        padding: 20px;
+        background-color: #fff9e5;
+        font-family: 'Noto Sans', Arial, sans-serif; /*  Revert to normal font */
+        white-space: pre-wrap; /*  Keeps text formatting */
+        word-wrap: break-word;
+        line-height: 1.2;
+        overflow-x: auto; /*  Prevents cut-off */
+        overflow-y: auto;
+
+        box-sizing: border-box;
+        border-radius: 40px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        border: 1px solid #ddd;
+        color: #000;
+}
 
             #color-picker {
         position: absolute;
@@ -117,26 +153,28 @@
         font-style: italic;
     }
 
-    .header-1 {
+        .header-1 {
         font-size: 2em;
         font-weight: bold;
-        display: inline;
-        line-height: 0.7;
+        display: inline; /* Ensure inline behavior */
+        line-height: 0.9;
     }
 
     .header-2 {
         font-size: 1.5em;
         font-weight: bold;
-        line-height: 0.8;
         display: inline;
+        line-height: 0.8;
     }
 
     .header-3 {
         font-size: 1.2em;
         font-weight: bold;
-        line-height: 0.9;
         display: inline;
+        line-height: 0.7;
     }
+
+
 
         /* Image container now positioned below render */
         .image-container {
@@ -216,9 +254,6 @@
         }
         </style>
         
-        
-         
-    
 </head>
 <body>
     <!-- Toolbar with buttons for formatting -->
@@ -226,6 +261,7 @@
         <button onclick="insertTag('bold')">Bold</button>
         <button onclick="insertTag('italic')">Italic</button>
         <button onclick="insertTag('bolditalic')">Bold Italic</button>
+        <button onclick="insertTag('mono')">Monospace</button>
         <button onclick="insertTag('header-1')">Header 1</button>
         <button onclick="insertTag('header-2')">Header 2</button>
         <button onclick="insertTag('header-3')">Header 3</button>
@@ -236,13 +272,13 @@
         <button onclick="document.getElementById('file-input').click()">Import .txt</button>
         <input type="file" id="file-input" accept=".txt" style="display: none;" />
         <button onclick="saveTextAsFile()">Save as .txt</button>
+        <button onclick="saveRenderAsImage()">Save as Image</button>
         <button onclick="toggleDarkMode()">Toggle Dark Mode</button>
-
 
     </div>
 
     <!-- Editor for user input -->
-    <textarea id="editor" placeholder="Type your formatted document here..."></textarea>
+    <textarea id="editor" placeholder="Type here and watch with amazement as it's rendered in the render area..."></textarea>
 
     <!-- Render area -->
     <div id="render-container">
@@ -252,10 +288,16 @@
 
         <!-- Content below render -->
         <div class="image-container">
-            <p class="image-text">v5.This isn't a 1-2-1 representation yet, block art displays a bit odd next to headers, and underscores display a bit too long.</p>
+            <p class="image-text">v6.</p>
             <img src="https://files.catbox.moe/gws2xt.png" alt="Placeholder Image">
-            <p class="image-text">Made with love - Simon / Big Dave<br>Special thanks to the the RMC14 community.</p>
-            <p class="image-text">#to-do: Include a feature to select templates from a repo, tune the render better, refine center feature</p>
+            <p class="image-text">Made with love - Simon / Big Dave / Fred Blehurst<br>Special thanks to the the RMC14 community, support their project, the game is fun too!.</p>
+            <p class="image-text">#v6 changes: General Fixes to tags, you can now roll/nest tags successfully and they *hopfully* will behave like they do in game "eg: [head=1]head1 [head=2]head2[/head]head1[/head]nothead"</p>
+            <p class="image-text"> Fixed brackets not displaying correctly within Bold
+            <p class="image-text">   Added monospace, the font is wrong for it while i figure out how to balance text and some specific types of ascii art</p>
+            <p class="image-text">  Completely rewrote the render output</p>
+            <p class="image-text"> Wrote framework for templates for headers but haven't introduced it into this code yet</p>
+            <p class="image-text"> Added a feature to copy a photo of the render output</p>
+            <p class="image-text">Todo: Implement header templating, figure out how to format the rest of the git repo, slightly nicer ui, somehow understand the black magic of the scroll bar in game, fix monospacing, add entry fields</p>
             <p class="image-text">Please give me feedback as well as tips.</p>
         </div>
     </div>
@@ -405,8 +447,12 @@ function insertColor(colorName) {
             closeTag = '[/head]';
             break;
         case 'bullet':
-            openTag = '[bullet/]';
+            openTag = '[bullet]';
             closeTag = ''; // Bullets don’t need a closing tag
+            break;
+        case 'mono':
+            openTag = '[mono]';
+            closeTag = '[/mono]';
             break;
     }
 
@@ -423,7 +469,6 @@ function insertColor(colorName) {
 
     updateRender(); // Update the live preview
 }
-
 
     function centerText() {
     const editor = document.getElementById('editor');
@@ -514,34 +559,143 @@ document.getElementById('file-input').addEventListener('change', function(event)
     URL.revokeObjectURL(downloadLink.href);
 }
 
-// Update the render preview
+// Function to detect ASCII Art (symbols and special characters)
+function isAsciiArt(char) {
+    return /[^\w\s]/.test(char); // Detects non-alphanumeric, non-space characters
+}
+
+// Function to detect Box Drawing characters (╔, ╦, ╬, etc.)
+const asciiBoxDrawing = new Set([
+    '─', '│', '┌', '┐', '└', '┘', '├', '┤', '┬', '┴', '┼',
+    '═', '║', '╔', '╗', '╚', '╝', '╠', '╣', '╦', '╩', '╬',
+    '╤', '╧', '╪', '╫', '╢', '╟', '╞', '╡', '╜', '╛', '╘', '╙',
+    '╓', '╖', '╕', '■', '□', '▪', '▫', '▬', '▲', '►', '▼', '◀', '◊', '○', '◌', '●'
+]);
+
+function isBoxDrawing(char) {
+    return asciiBoxDrawing.has(char); 
+}
+
+
 function updateRender() {
-    const editorContent = document.getElementById('editor').value;
+    const editorContent = document.getElementById('editor').value.trim();
     const renderDiv = document.getElementById('render');
 
-    // Process and render the text with formatting
-    renderDiv.innerHTML = editorContent
-        // Process bold italic first to avoid conflicts
-        .replace(/\[bolditalic\](.*?)\[\/bolditalic\]/gs, '<span class="bolditalic">$1</span>')
-        // Then process bold
-        .replace(/\[bold\](.*?)\[\/bold\]/gs, '<span class="bold">$1</span>')
-        // Then process italic
-        .replace(/\[italic\](.*?)\[\/italic\]/gs, '<span class="italic">$1</span>')
-        // Headers processing
-        .replace(/\[head=1\](.*?)\[\/head\]/gs, '<div class="header-1">$1</div>')
-        .replace(/\[head=2\](.*?)\[\/head\]/gs, '<div class="header-2">$1</div>')
-        .replace(/\[head=3\](.*?)\[\/head\]/gs, '<div class="header-3">$1</div>')
-        // Bullet points
-        .replace(/\[bullet\/\]/g, '• ')
-        // Named colors
-        .replace(/\[color=([a-zA-Z]+)\](.*?)\[\/color\]/gs, (_, color, text) => {
-            const hex = namedColors[color] || color; // Handle named colors
-            return `<span style="color:${hex}">${text}</span>`;
-        })
-        // Hex colors (closed tags)
-        .replace(/\[color=#([0-9A-Fa-f]{3,8})\](.*?)\[\/color\]/gs, '<span style="color:#$1">$2</span>')
-        // Hex colors (open tags)
-        .replace(/\[color=#([0-9A-Fa-f]{3,8})\](.*?)(?=$|\[)/gs, '<span style="color:#$1">$2</span>');
+    if (!editorContent) {
+        renderDiv.innerHTML = "";
+        return;
+    }
+
+    let output = "";
+    let isMono = false;
+    let tagStack = [];
+
+    try { // Ensure `try` starts here
+        let tokens = editorContent.split(/(\[\/?[a-zA-Z0-9=#]+\])/g).filter(Boolean);
+
+        tokens.forEach(token => {
+            let tagMatch = token.match(/\[([a-zA-Z0-9=#\/]+)\]/);
+
+            if (tagMatch) {
+                let tag = tagMatch[1];
+
+                // Handle Closing Tags
+                if (tag.startsWith('/')) {
+                    let tagName = tag.substring(1);
+
+                    if (tagName === "mono") {
+                        isMono = false;
+                        output += `</span>`;
+                    } else if (tagName === "bold") {
+                        output += `</b>`;
+                    } else if (tagName === "italic") {
+                        output += `</i>`;
+                    } else if (tagName === "bolditalic") {
+                        output += `</i></b>`;
+                    } else if (tagName.startsWith("head")) {
+                        output += `</span>`;
+                    } else if (tagName.startsWith("color")) {
+                        output += `</span>`;
+                    }
+
+                    tagStack.pop();
+                } else {
+                    // Handle Opening Tags
+                    if (tag === "mono") {
+                        isMono = true;
+                        output += `<span class="monospace">`;
+                    } else if (tag === "bold") {
+                        output += `<b>`;
+                    } else if (tag === "italic") {
+                        output += `<i>`;
+                    } else if (tag === "bolditalic") {
+                        output += `<b><i>`;
+                    } else if (tag.startsWith("color=")) {
+                        let color = tag.split("=")[1];
+                        output += `<span style="color:${color}">`;
+                    } else if (tag.startsWith("head=")) {
+                        let level = tag.split("=")[1];
+                        output += `<span class="header-${level}">`;
+                    }
+
+                    tagStack.push(tag);
+                }
+            } else {
+                // Apply ASCII formatting only inside [mono]
+                if (isMono) {
+                    output += token.split("").map(char => {
+                if (isBoxDrawing(char)) {
+                    return `<span class="ascii-art">${char}</span>`; //  Ensures ASCII-art styling
+                } else if (isAsciiArt(char)) {
+                    return `<span class="monospace">${char}</span>`; //  Keeps ASCII inside monospace
+                }
+                return char; //  Normal characters remain unchanged
+    }).join("");
+} else {
+    output += token; //  Normal text remains as is
+}
+
+            }
+        });
+
+        // Close any unclosed tags
+        while (tagStack.length > 0) {
+            let tag = tagStack.pop();
+            if (tag === "bold") output += `</b>`;
+            if (tag === "italic") output += `</i>`;
+            if (tag === "bolditalic") output += `</i></b>`;
+            if (tag.startsWith("head")) output += `</span>`;
+            if (tag.startsWith("color")) output += `</span>`;
+            if (tag === "mono") output += `</span>`;
+        }
+
+        renderDiv.innerHTML = output;
+
+    } catch (error) {  //  Catch must be correctly placed
+        console.error("Error in updateRender:", error);
+        renderDiv.innerHTML = `<span style='color:red;'>⚠ Render Error ⚠</span>`;
+    }
+}
+
+
+// Function to convert tags
+function convertTag(tag) {
+    if (tag.startsWith("color=")) {
+        let color = tag.split("=")[1];
+        return `span style="color:${color}"`;
+    }
+
+    const tagMap = {
+        "bold": "b",
+        "italic": "i",
+        "bolditalic": "b><i",
+        "head=1": 'span class="header-1"',
+        "head=2": 'span class="header-2"',
+        "head=3": 'span class="header-3"',
+        "mono": 'span class="monospace"' // Correctly mapped
+    };
+
+    return tagMap[tag] || null;
 }
 
 
@@ -605,6 +759,27 @@ function insertHexColor() {
         saveToHistory();
         updateRender();
     });
+
+    function saveRenderAsImage() {
+    const renderDiv = document.getElementById('render');
+
+    html2canvas(renderDiv, { // Saves render as png
+        backgroundColor: null, // Keeps transparency
+        useCORS: true, // Fixes rendering artifacts
+        scale: 2, // Increases resolution for better quality
+    }).then(canvas => {
+        const imgData = canvas.toDataURL("image/png");
+
+        // Create a download link
+        const downloadLink = document.createElement("a");
+        downloadLink.href = imgData;
+        downloadLink.download = "render_output.png";
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+    });
+}
+
 </script>
 </body>
 </html>
