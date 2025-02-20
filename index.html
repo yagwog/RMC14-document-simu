@@ -446,10 +446,30 @@ function insertColor(colorName) {
             openTag = '[head=3]';
             closeTag = '[/head]';
             break;
-        case 'bullet':
-            openTag = '[bullet]';
-            closeTag = ''; // Bullets don’t need a closing tag
+          case 'bullet': {
+            const editor = document.getElementById('editor');
+            const start = editor.selectionStart;
+            const end = editor.selectionEnd;
+            
+            const before = editor.value.substring(0, start);
+            const selectedText = editor.value.substring(start, end);
+            const after = editor.value.substring(end);
+
+            // Insert `[bullet] ` before the selected text or at the cursor
+            if (selectedText.trim()) {
+                editor.value = before + `[bullet] ` + selectedText + after;
+            } else {
+                editor.value = before + `[bullet] ` + after;
+            }
+
+            // Move the cursor correctly after inserting the bullet
+            const cursorPosition = start + `[bullet] `.length;
+            editor.setSelectionRange(cursorPosition, cursorPosition);
+            editor.focus();
+
+            updateRender();
             break;
+        }
         case 'mono':
             openTag = '[mono]';
             closeTag = '[/mono]';
@@ -590,7 +610,7 @@ function updateRender() {
     let isMono = false;
     let tagStack = [];
 
-    try { // Ensure `try` starts here
+    try {
         let tokens = editorContent.split(/(\[\/?[a-zA-Z0-9=#]+\])/g).filter(Boolean);
 
         tokens.forEach(token => {
@@ -636,6 +656,8 @@ function updateRender() {
                     } else if (tag.startsWith("head=")) {
                         let level = tag.split("=")[1];
                         output += `<span class="header-${level}">`;
+                    } else if (tag === "bullet") {  // ✅ Bullet point fix
+                        output += `• `; // Just insert the bullet symbol
                     }
 
                     tagStack.push(tag);
@@ -644,17 +666,16 @@ function updateRender() {
                 // Apply ASCII formatting only inside [mono]
                 if (isMono) {
                     output += token.split("").map(char => {
-                if (isBoxDrawing(char)) {
-                    return `<span class="ascii-art">${char}</span>`; //  Ensures ASCII-art styling
-                } else if (isAsciiArt(char)) {
-                    return `<span class="monospace">${char}</span>`; //  Keeps ASCII inside monospace
+                        if (isBoxDrawing(char)) {
+                            return `<span class="ascii-art">${char}</span>`; 
+                        } else if (isAsciiArt(char)) {
+                            return `<span class="monospace">${char}</span>`; 
+                        }
+                        return char;
+                    }).join("");
+                } else {
+                    output += token; // Normal text remains as is
                 }
-                return char; //  Normal characters remain unchanged
-    }).join("");
-} else {
-    output += token; //  Normal text remains as is
-}
-
             }
         });
 
@@ -671,12 +692,11 @@ function updateRender() {
 
         renderDiv.innerHTML = output;
 
-    } catch (error) {  //  Catch must be correctly placed
+    } catch (error) {  
         console.error("Error in updateRender:", error);
         renderDiv.innerHTML = `<span style='color:red;'>⚠ Render Error ⚠</span>`;
     }
 }
-
 
 // Function to convert tags
 function convertTag(tag) {
