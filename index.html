@@ -640,28 +640,47 @@ function updateRender() {
 
                     tagStack.pop();
                 } else {
-                    // Handle Opening Tags
-                    if (tag === "mono") {
-                        isMono = true;
-                        output += `<span class="monospace">`;
-                    } else if (tag === "bold") {
-                        output += `<b>`;
-                    } else if (tag === "italic") {
-                        output += `<i>`;
-                    } else if (tag === "bolditalic") {
-                        output += `<b><i>`;
-                    } else if (tag.startsWith("color=")) {
-                        let color = tag.split("=")[1];
-                        output += `<span style="color:${color}">`;
-                    } else if (tag.startsWith("head=")) {
-                        let level = tag.split("=")[1];
-                        output += `<span class="header-${level}">`;
-                    } else if (tag === "bullet") {  // ✅ Bullet point fix
-                        output += `• `; // Just insert the bullet symbol
-                    }
+                // Handle Opening Tags
+                if (tag === "mono") {
+                    isMono = true;
+                    output += `<span class="monospace">`;
+                } else if (tag === "bold") {
+                    output += `<b>`;
+                } else if (tag === "italic") {
+                    output += `<i>`;
+                } else if (tag === "bolditalic") {
+                    output += `<b><i>`;
+                } else if (tag.startsWith("color=")) {
+                    let color = tag.split("=")[1];
+                    output += `<span style="color:${color}">`;
+                } else if (tag.startsWith("head=")) {
+                    let level = tag.split("=")[1].trim();
 
-                    tagStack.push(tag);
+                    if (["1", "2", "3"].includes(level)) {
+                        // Close any currently open [head] tag before opening a new one
+                        while (tagStack.length > 0 && tagStack[tagStack.length - 1].startsWith("head")) {
+                            output += `</span>`;
+                            tagStack.pop();
+                        }
+
+                        output += `<span class="header-${level}">`;
+                        tagStack.push(`head=${level}`); // Track the currently open header tag
+                    }
+                } else if (tag === "/head") {
+                    // Close only the last opened [head] tag
+                    let lastTag = tagStack.pop();
+                    if (lastTag && lastTag.startsWith("head")) {
+                        output += `</span>`;
+                    }
+                } else if (tag === "bullet") {  
+                    output += `• `; // Just insert the bullet symbol
                 }
+
+                // Only push tags that aren't closing [head]
+                if (!tag.startsWith("/")) {
+                    tagStack.push(tag);
+                }}
+
             } else {
                 // Apply ASCII formatting only inside [mono]
                 if (isMono) {
