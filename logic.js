@@ -42,470 +42,364 @@
     "PapayaWhip": "#FFEFD5", "AntiqueWhite": "#FAEBD7", "FloralWhite": "#FFFAF0",
     "Ivory": "#FFFFF0", "Beige": "#F5F5DC", "Linen": "#FAF0E6",
     "OldLace": "#FDF5E6", "WhiteSmoke": "#F5F5F5", "GhostWhite": "#F8F8FF",
-    "AliceBlue": "#F0F8FF",
-};
+    "AliceBlue": "#F0F8FF", };
 
-        // Initialize the color picker with color options
-        function initializeColorPicker() {
-    const picker = document.getElementById('color-picker');
-    picker.innerHTML = ''; // Clear existing colors
-    for (const [name, hex] of Object.entries(namedColors)) {
-        const box = document.createElement('div');
-        box.style.backgroundColor = hex;
-        box.className = 'color-box';
-        box.title = name;
-        box.onclick = () => insertColor(name);
-        picker.appendChild(box);
-    }
+function initializeColorPicker() {
+  const p = document.getElementById('color-picker');
+  p.style.display = 'none';
+  p.innerHTML = '';
+  for (let [name, hex] of Object.entries(namedColors)) {
+    const box = document.createElement('div');
+    box.className = 'color-box';
+    box.style.background = hex;
+    box.title = name;
+    box.onclick = () => insertColor(name);
+    p.appendChild(box);
+  }
 }
 
-
-function toggleDarkMode() {
-    // Toggle the "dark-mode" class on the body
-    document.body.classList.toggle("dark-mode");
-
-    // Ensure the #render element's color stays consistent
-    const renderArea = document.getElementById("render");
-    renderArea.style.color = document.body.classList.contains("dark-mode") ? "#000" : ""; // Maintain black text
-}
-
-
-// Toggle the color picker visibility
 function toggleColorPicker() {
-    const picker = document.getElementById('color-picker');
-    const isVisible = picker.style.display === 'grid';
-    picker.style.display = isVisible ? 'none' : 'grid';
-
-    // Recalculate and adjust position if necessary
-    if (!isVisible) {
-        const toolbar = document.getElementById('toolbar');
-        const rect = toolbar.getBoundingClientRect();
-        picker.style.top = `${rect.top + window.scrollY + 10}px`; // Place below toolbar
-        picker.style.left = `${rect.right + 10}px`; // Place beside toolbar
-    }
+  const p = document.getElementById('color-picker');
+  if (p.style.display === 'grid') p.style.display = 'none';
+  else {
+    p.style.display = 'grid';
+    const t = document.getElementById('toolbar').getBoundingClientRect();
+    p.style.top = `${t.top + 10}px`;
+    p.style.left = `${t.right + 10}px`;
+  }
+}
+function insertColor(c) {
+  const ed = document.getElementById('editor'),
+        [s,e] = [ed.selectionStart, ed.selectionEnd],
+        txt = ed.value.slice(s,e);
+  ed.value = ed.value.slice(0,s)
+           + `[color=${c}]${txt}[/color]`
+           + ed.value.slice(e);
+  ed.focus();
+  updateRender();
+  document.getElementById('color-picker').style.display='none';
+}
+function insertHexColor() {
+  let h = prompt("Enter hex (e.g. #aabbcc):");
+  if (h && /^#[0-9A-F]{3,6}$/i.test(h)) insertColor(h);
 }
 
-
-// Insert a color tag into the editor
-function insertColor(colorName) {
-    const editor = document.getElementById('editor');
-    const start = editor.selectionStart;
-    const end = editor.selectionEnd;
-    const selectedText = editor.value.substring(start, end);
-    const colorTag = `[color=${colorName}]${selectedText}[/color]`;
-
-    editor.value =
-        editor.value.substring(0, start) + colorTag + editor.value.substring(end);
-
-    updateRender();
-    document.getElementById('color-picker').style.display = 'none';
+// --- generic insertTag for bold/italic/mono/head/bullet ---
+function insertTag(tag) {
+  const ed = document.getElementById('editor'),
+        [s,e] = [ed.selectionStart, ed.selectionEnd],
+        sel = ed.value.slice(s,e);
+  if (tag==='bullet') {
+    ed.value = ed.value.slice(0,s) + '• ' + ed.value.slice(s);
+  } else {
+    ed.value = ed.value.slice(0,s)
+             + `[${tag}]${sel}[/${ tag.split('=')[0] }]`
+             + ed.value.slice(e);
+  }
+  ed.focus();
+  updateRender();
 }
 
-
-
-    // Insert a formatting tag
-    function insertTag(tag) {
-    const editor = document.getElementById('editor');
-    const start = editor.selectionStart;
-    const end = editor.selectionEnd;
-    const selectedText = editor.value.substring(start, end);
-
-    let openTag = '', closeTag = '';
-
-    switch (tag) {
-        case 'bold':
-            openTag = '[bold]';
-            closeTag = '[/bold]';
-            break;
-        case 'italic':
-            openTag = '[italic]';
-            closeTag = '[/italic]';
-            break;
-        case 'bolditalic':
-            openTag = '[bolditalic]';
-            closeTag = '[/bolditalic]';
-            break;
-        case 'header-1':
-            openTag = '[head=1]';
-            closeTag = '[/head]';
-            break;
-        case 'header-2':
-            openTag = '[head=2]';
-            closeTag = '[/head]';
-            break;
-        case 'header-3':
-            openTag = '[head=3]';
-            closeTag = '[/head]';
-            break;
-          case 'bullet': {
-            const editor = document.getElementById('editor');
-            const start = editor.selectionStart;
-            const end = editor.selectionEnd;
-            
-            const before = editor.value.substring(0, start);
-            const selectedText = editor.value.substring(start, end);
-            const after = editor.value.substring(end);
-
-            // Insert `[bullet] ` before the selected text or at the cursor
-            if (selectedText.trim()) {
-                editor.value = before + `[bullet] ` + selectedText + after;
-            } else {
-                editor.value = before + `[bullet] ` + after;
-            }
-
-            // Move the cursor correctly after inserting the bullet
-            const cursorPosition = start + `[bullet] `.length;
-            editor.setSelectionRange(cursorPosition, cursorPosition);
-            editor.focus();
-
-            updateRender();
-            break;
-        }
-        case 'mono':
-            openTag = '[mono]';
-            closeTag = '[/mono]';
-            break;
-    }
-
-    const before = editor.value.substring(0, start);
-    const after = editor.value.substring(end);
-
-    // Insert the tags and position the cursor correctly
-    editor.value = before + openTag + selectedText + closeTag + after;
-
-    // Set the cursor position or selection range
-    const cursorPosition = start + openTag.length;
-    editor.setSelectionRange(cursorPosition, cursorPosition + selectedText.length);
-    editor.focus();
-
-    updateRender(); // Update the live preview
+// --- center text ---
+function centerText() {
+  const ed = document.getElementById('editor'), [s,e] = [ed.selectionStart, ed.selectionEnd],
+        lines = ed.value.slice(s,e).split('\n');
+  const centered = lines.map(l=>{
+    const pad = Math.floor((80 - l.length)/2);
+    return ' '.repeat(Math.max(0,pad)) + l;
+  }).join('\n');
+  ed.value = ed.value.slice(0,s) + centered + ed.value.slice(e);
+  ed.focus();
+  updateRender();
 }
 
-    function centerText() {
-    const editor = document.getElementById('editor');
-    const totalWidth = 80; // Total width for centering (adjust as needed for the input layout)
-
-    // Get the selection start and end
-    const start = editor.selectionStart;
-    const end = editor.selectionEnd;
-
-    // Extract selected text
-    const selectedText = editor.value.substring(start, end);
-
-    if (!selectedText.trim()) {
-        alert("Please select some text to center.");
-        return;
-    }
-
-    // Split selected text into lines
-    const lines = selectedText.split("\n");
-
-    // Center each line individually
-    const centeredLines = lines.map(line => {
-        const textLength = line.trim().length; // Trim to exclude leading/trailing spaces
-        const spacesNeeded = Math.max(0, Math.floor((totalWidth - textLength) / 2));
-        return " ".repeat(spacesNeeded) + line.trim();
-    });
-
-    // Replace the selected text with the centered text
-    const centeredText = centeredLines.join("\n");
-    const before = editor.value.substring(0, start);
-    const after = editor.value.substring(end);
-    editor.value = before + centeredText + after;
-
-    // Re-select the centered text
-    editor.setSelectionRange(start, start + centeredText.length);
-
-    // Update the render preview
-    updateRender();
-}
-
+// --- save/load/undo/keyboard shortcuts ---
 function saveTextAsFile() {
-    // Get the content of the editor
-    const editorContent = document.getElementById('editor').value;
+  const blob = new Blob([document.getElementById('editor').value],{type:'text/plain'}),
+        a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'document.txt';
+  a.click();
+}
+function saveRenderAsImage(){
+  const el = document.getElementById('render');
+  html2canvas(el, {
+    backgroundColor: null,   // <-- keeps the rounded-corner transparency
+    useCORS: true,
+    scale: 2
+  }).then(canvas=>{
+    const a=document.createElement('a');
+    a.href = canvas.toDataURL('image/png');
+    a.download = 'render.png';
+    a.click();
+  });
+}
 
-    // Prompt the user to enter a file name
-    const fileName = prompt("Enter a name for your file (without extension):", "my_document");
-    if (!fileName) {
-        alert("File name is required to save the file.");
-        return;
-    }
 
-// Function to handle file import
-document.getElementById('file-input').addEventListener('change', function(event) {
-    const file = event.target.files[0];
-
-    if (!file) {
-        alert("No file selected. Please select a .txt file.");
-        return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        const content = e.target.result;
-        document.getElementById('editor').value = content; // Load content into the editor
-        updateRender(); // Update the render preview
-    };
-
-    reader.onerror = function() {
-        alert("Failed to read the file. Please try again.");
-    };
-
-    reader.readAsText(file);
+document.getElementById('file-input').addEventListener('change', e=>{
+  const f = e.target.files[0], r = new FileReader();
+  r.onload = ()=>{ document.getElementById('editor').value = r.result; updateRender(); };
+  r.readAsText(f);
 });
 
+const history = [];
+function saveHistory() {
+  const ed = document.getElementById('editor');
+  history.push(ed.value);
+  if (history.length > 20) history.shift();
+}
+function undo() {
+  if (history.length) {
+    document.getElementById('editor').value = history.pop();
+    updateRender();
+  }
+}
+document.getElementById('editor').addEventListener('input', ()=>{
+  saveHistory();
+  updateRender();
+});
+document.addEventListener('keydown', ev=>{
+  if (ev.ctrlKey) {
+    if (ev.key==='b') { ev.preventDefault(); insertTag('bold'); }
+    if (ev.key==='i') { ev.preventDefault(); insertTag('italic'); }
+    if (ev.key==='z') { ev.preventDefault(); undo(); }
+  }
+});
 
-    // Create a Blob with the content and type
-    const blob = new Blob([editorContent], { type: "text/plain" });
-
-    // Create a temporary anchor element to trigger download
-    const downloadLink = document.createElement("a");
-    downloadLink.href = URL.createObjectURL(blob);
-    downloadLink.download = `${fileName}.txt`;
-
-    // Programmatically click the anchor to start the download
-    downloadLink.click();
-
-    // Revoke the URL object to free memory
-    URL.revokeObjectURL(downloadLink.href);
+// --- dark mode ---
+function toggleDarkMode() {
+  document.body.classList.toggle('dark-mode');
 }
 
-// Function to detect ASCII Art (symbols and special characters)
-function isAsciiArt(char) {
-    return /[^\w\s]/.test(char); // Detects non-alphanumeric, non-space characters
-}
-
-// Function to detect Box Drawing characters (╔, ╦, ╬, etc.)
-const asciiBoxDrawing = new Set([
-    '─', '│', '┌', '┐', '└', '┘', '├', '┤', '┬', '┴', '┼',
-    '═', '║', '╔', '╗', '╚', '╝', '╠', '╣', '╦', '╩', '╬',
-    '╤', '╧', '╪', '╫', '╢', '╟', '╞', '╡', '╜', '╛', '╘', '╙',
-    '╓', '╖', '╕', '■', '□', '▪', '▫', '▬', '▲', '►', '▼', '◀', '◊', '○', '◌', '●'
-]);
-
-function isBoxDrawing(char) {
-    return asciiBoxDrawing.has(char); 
-}
-
-
+// ─── updateRender ───────────────────────────────────────────────────────────
 function updateRender() {
-    const editorContent = document.getElementById('editor').value.trim();
+    const editorContent = document.getElementById('editor').value;
     const renderDiv = document.getElementById('render');
+    let output = '';
+    let stack = [];
 
-    if (!editorContent) {
-        renderDiv.innerHTML = "";
-        return;
-    }
+    const tokens = editorContent.split(/(\[\/?[a-z=0-9#]+\])/i).filter(Boolean);
 
-    let output = "";
-    let isMono = false;
-    let tagStack = [];
+    tokens.forEach(tok => {
+        const openMatch = tok.match(/^\[([a-z]+)(?:=([^\]]+))?\]$/i);
+        const closeMatch = tok.match(/^\[\/([a-z]+)\]$/i);
 
-    try {
-        let tokens = editorContent.split(/(\[\/?[a-zA-Z0-9=#]+\])/g).filter(Boolean);
+        if (openMatch) {
+            const tag = openMatch[1];
+            const param = openMatch[2] || '';
 
-        tokens.forEach(token => {
-            let tagMatch = token.match(/\[([a-zA-Z0-9=#\/]+)\]/);
-
-            if (tagMatch) {
-                let tag = tagMatch[1];
-
-                // Handle Closing Tags
-                if (tag.startsWith('/')) {
-                    let tagName = tag.substring(1);
-
-                    if (tagName === "mono") {
-                        isMono = false;
-                        output += `</span>`;
-                    } else if (tagName === "bold") {
-                        output += `</b>`;
-                    } else if (tagName === "italic") {
-                        output += `</i>`;
-                    } else if (tagName === "bolditalic") {
-                        output += `</i></b>`;
-                    } else if (tagName.startsWith("head")) {
-                        output += `</span>`;
-                    } else if (tagName.startsWith("color")) {
-                        output += `</span>`;
-                    }
-
-                    tagStack.pop();
-                } else {
-                // Handle Opening Tags
-                if (tag === "mono") {
-                    isMono = true;
-                    output += `<span class="monospace">`;
-                } else if (tag === "bold") {
-                    output += `<b>`;
-                } else if (tag === "italic") {
-                    output += `<i>`;
-                } else if (tag === "bolditalic") {
-                    output += `<b><i>`;
-                } else if (tag.startsWith("color=")) {
-                    let color = tag.split("=")[1];
-                    output += `<span style="color:${color}">`;
-                } else if (tag.startsWith("head=")) {
-                    let level = tag.split("=")[1].trim();
-
-                    if (["1", "2", "3"].includes(level)) {
-                        // Close any currently open [head] tag before opening a new one
-                        while (tagStack.length > 0 && tagStack[tagStack.length - 1].startsWith("head")) {
-                            output += `</span>`;
-                            tagStack.pop();
-                        }
-
-                        output += `<span class="header-${level}">`;
-                        tagStack.push(`head=${level}`); // Track the currently open header tag
-                    }
-                } else if (tag === "/head") {
-                    // Close only the last opened [head] tag
-                    let lastTag = tagStack.pop();
-                    if (lastTag && lastTag.startsWith("head")) {
-                        output += `</span>`;
-                    }
-                } else if (tag === "bullet") {  
-                    output += `• `; // Just insert the bullet symbol
-                }
-
-                // Only push tags that aren't closing [head]
-                if (!tag.startsWith("/")) {
-                    tagStack.push(tag);
-                }}
-
+            if (tag === 'bullet') {
+                output += '• ';
             } else {
-                // Apply ASCII formatting only inside [mono]
-                if (isMono) {
-                    output += token.split("").map(char => {
-                        if (isBoxDrawing(char)) {
-                            return `<span class="ascii-art">${char}</span>`; 
-                        } else if (isAsciiArt(char)) {
-                            return `<span class="monospace">${char}</span>`; 
-                        }
-                        return char;
-                    }).join("");
-                } else {
-                    output += token; // Normal text remains as is
+                let spanClass = '', spanStyle = '';
+                switch (tag) {
+                    case 'bold':
+                        output += '<b>'; stack.push({tag: 'bold'}); break;
+                    case 'italic':
+                        output += '<i>'; stack.push({tag: 'italic'}); break;
+                    case 'bolditalic':
+                        output += '<b><i>';
+                        stack.push({tag: 'bolditalic'});
+                        break;
+                    case 'mono':
+                        output += '<span class="monospace">'; stack.push({tag: 'mono'}); break;
+                    case 'color':
+                    spanStyle = `color:${param}`;
+                    output   += `<span style="${spanStyle}">`;
+                    stack.push({ tag: 'color', param });   // ← keep the colour for later re-open
+                    break;
+                    case 'head':
+                        spanClass = `header-${param}`;
+                        output += `<span class="${spanClass}">`;
+                        stack.push({tag: 'head', param}); break;
+                    default: break;
                 }
             }
-        });
+        } else if (closeMatch) {
+            const tag = closeMatch[1];
+            let tempStack = [];
 
-        // Close any unclosed tags
-        while (tagStack.length > 0) {
-            let tag = tagStack.pop();
-            if (tag === "bold") output += `</b>`;
-            if (tag === "italic") output += `</i>`;
-            if (tag === "bolditalic") output += `</i></b>`;
-            if (tag.startsWith("head")) output += `</span>`;
-            if (tag.startsWith("color")) output += `</span>`;
-            if (tag === "mono") output += `</span>`;
-        }
+            while (stack.length) {
+                const last = stack.pop();
+                if (last.tag === 'bold') output += '</b>';
+                else if (last.tag === 'italic') output += '</i>';
+                else if (last.tag === 'bolditalic') output += '</i></b>';   
+                else output += '</span>';
 
-        renderDiv.innerHTML = output;
-
-    } catch (error) {  
-        console.error("Error in updateRender:", error);
-        renderDiv.innerHTML = `<span style='color:red;'>⚠ Render Error ⚠</span>`;
-    }
-}
-
-// Function to convert tags
-function convertTag(tag) {
-    if (tag.startsWith("color=")) {
-        let color = tag.split("=")[1];
-        return `span style="color:${color}"`;
-    }
-
-    const tagMap = {
-        "bold": "b",
-        "italic": "i",
-        "bolditalic": "b><i",
-        "head=1": 'span class="header-1"',
-        "head=2": 'span class="header-2"',
-        "head=3": 'span class="header-3"',
-        "mono": 'span class="monospace"' // Correctly mapped
-    };
-
-    return tagMap[tag] || null;
-}
-
-
-
-function insertHexColor() {
-    const hexColor = prompt("Enter a hex color code (e.g., #FF5733):");
-    if (hexColor && /^#[0-9A-Fa-f]{3,8}$/.test(hexColor)) {
-        const editor = document.getElementById('editor');
-        const start = editor.selectionStart;
-        const end = editor.selectionEnd;
-        const selectedText = editor.value.substring(start, end);
-
-        const before = editor.value.substring(0, start);
-        const after = editor.value.substring(end);
-
-        // Insert the hex color tag
-        const colorTag = `[color=${hexColor}]${selectedText}`;
-        editor.value = `${before}${colorTag}${after}`;
-        const cursorPosition = start + colorTag.length;
-        editor.setSelectionRange(cursorPosition, cursorPosition + selectedText.length);
-        editor.focus();
-
-        updateRender(); // Trigger render update
-    } else {
-        alert("Invalid hex code! Please use formats like #RGB, #RRGGBB, #RGBA, or #RRGGBBAA.");
-    }
-}
-
-
-    // Keybinds for formatting and undo
-    document.addEventListener('keydown', (event) => {
-        const editor = document.getElementById('editor');
-        if (event.ctrlKey) {
-            switch (event.key.toLowerCase()) {
-                case 'b': event.preventDefault(); insertTag('bold'); break;
-                case 'i': event.preventDefault(); insertTag('italic'); break;
-                case 'z': event.preventDefault(); undoLastChange(); break;
+                if (last.tag === tag) break;
+                else tempStack.push(last);
             }
+
+            // reopen styles temporarily closed above
+            while (tempStack.length) {
+                const reopened = tempStack.pop();
+                switch (reopened.tag) {
+            case 'bold':        output += '<b>';                      break;
+            case 'italic':      output += '<i>';                      break;
+            case 'mono':        output += '<span class="monospace">'; break;
+            case 'color':       output += `<span style="color:${reopened.param}">`; break;
+            case 'head':        output += `<span class="header-${reopened.param}">`; break;
+            case 'bolditalic':  output += '<b><i>';                   break;
+            default: break;
+            }
+                stack.push(reopened);
+            }
+
+        } else {
+            output += tok
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/  /g,' &nbsp;');
         }
     });
 
-    // Undo functionality
-    const history = [];
-    function saveToHistory() {
-        const editor = document.getElementById('editor');
-        history.push(editor.value);
-        if (history.length > 20) history.shift(); // Limit history size
+    // Close all leftover tags at the end
+    while (stack.length) {
+        const tag = stack.pop();
+        if (tag.tag === 'bold') output += '</b>';
+        else if (tag.tag === 'italic') output += '</i>';
+        else output += '</span>';
     }
 
-    function undoLastChange() {
-        const editor = document.getElementById('editor');
-        if (history.length > 0) {
-            editor.value = history.pop();
-            updateRender();
-        }
-    }
-
-    // Initialize color picker and save initial state
-    initializeColorPicker();
-    document.getElementById('editor').addEventListener('input', () => {
-        saveToHistory();
-        updateRender();
-    });
-
-    function saveRenderAsImage() {
-    const renderDiv = document.getElementById('render');
-
-    html2canvas(renderDiv, { // Saves render as png
-        backgroundColor: null, // Keeps transparency
-        useCORS: true, // Fixes rendering artifacts
-        scale: 2, // Increases resolution for better quality
-    }).then(canvas => {
-        const imgData = canvas.toDataURL("image/png");
-
-        // Create a download link
-        const downloadLink = document.createElement("a");
-        downloadLink.href = imgData;
-        downloadLink.download = "render_output.png";
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-        document.body.removeChild(downloadLink);
-    });
+    renderDiv.innerHTML = output;
 }
+
+function htmlOpenFor(tag, param = '') {
+  switch (tag) {
+    case 'bold': return '<b>';
+    case 'italic': return '<i>';
+    case 'bolditalic': return '<b><i>';
+    case 'mono': return '<span class="monospace">';
+    case 'color': return `<span style="color:${param}">`;
+    default: return '';
+  }
+}
+
+function htmlCloseFor(tag) {
+  const baseTag = tag.split('=')[0];
+  switch (baseTag) {
+    case 'bold': return '</b>';
+    case 'italic': return '</i>';
+    case 'bolditalic': return '</i></b>';
+    case 'mono':
+    case 'color':
+    case 'head':
+      return '</span>';
+    default: return '';
+  }
+}
+
+// ─── TEMPLATE PICKER ──────────────────────────────────────────
+let templateCache = null;
+
+async function toggleTemplatePicker() {
+  const picker = document.getElementById('template-picker');
+  if (picker.style.display === 'block') {           // hide
+    picker.style.display = 'none';
+    return;
+  }
+
+  // 1) first-time fetch?
+  if (!templateCache) {
+    picker.innerHTML = 'loading…';
+    templateCache = await fetchTemplates();
+  }
+
+  // 2) build / rebuild the tree every time (cheap)
+  picker.innerHTML = buildTemplateTree(templateCache);
+  picker.style.display = 'block';
+
+  // position next to toolbar
+  const tb = document.getElementById('toolbar').getBoundingClientRect();
+  picker.style.top  = `${tb.top + 10}px`;
+  picker.style.left = `${tb.right + 10}px`;
+}
+
+// returns an array of { path:"folder/file.txt", url:"raw-url" }
+async function fetchTemplates() {
+  const API   = 'https://api.github.com/repos/crazy1112345/RMC14Paperwork/contents/Main/Updated%20RMC14';
+  async function walk(url, basePath='') {
+    const res  = await fetch(url);
+    const list = await res.json();
+    let out    = [];
+    for (const item of list) {
+      if (item.type === 'file' && item.name.endsWith('.txt')) {
+        out.push({path: basePath + item.name, url: item.download_url});
+      } else if (item.type === 'dir') {
+        out = out.concat(await walk(item.url, basePath + item.name + '/'));
+      }
+    }
+    return out;
+  }
+  return walk(API);
+}
+
+function buildTemplateTree(files) {
+  // files is flat; build simple <ul><li> structure by path parts
+  const root = {};
+  files.forEach(f => {
+    const parts = f.path.split('/');
+    let node = root;
+    parts.forEach((p,i) => {
+      if (!node[p]) node[p] = (i === parts.length-1) ? f.url : {};
+      node = node[p];
+    });
+  });
+
+  function render(node, indent='') {
+    return Object.entries(node).map(([name,val])=>{
+      if (typeof val === 'string') {        // file
+        return `<div style="cursor:pointer"
+                     onclick="loadTemplate('${val.replace(/'/g,"\\'")}')">
+                  ${indent}📄 ${name}</div>`;
+      }
+      // folder
+      return `<div>${indent}📂 <b>${name}</b></div>${render(val, indent+'  ')}`;
+    }).join('');
+  }
+  return render(root);
+}
+
+// fetch file → put into #editor
+async function loadTemplate(rawUrl) {
+  try {
+    const txt = await (await fetch(rawUrl)).text();
+    const ed  = document.getElementById('editor');
+    ed.value  = txt;
+    updateRender();
+    document.getElementById('template-picker').style.display='none';
+  } catch (e) {
+    alert('Failed to load template ☹');
+  }
+}
+
+// ─── CLICK-AWAY HIDER FOR PICKERS ────────────────────────────────
+(() => {
+  // cache the DOM nodes we care about once:
+  const colorBtn   = document.querySelector('button[onclick^="toggleColorPicker"]');
+  const templateBtn= document.querySelector('button[onclick^="toggleTemplatePicker"]');
+  const colorPick  = document.getElementById('color-picker');
+  const templatePick = document.getElementById('template-picker');
+
+  // helper: is the click inside a given element?
+  function inside(node, target) { return node && target && node.contains(target); }
+
+  document.addEventListener('click', (ev) => {
+    const t = ev.target;
+    // Colour-picker
+    if (colorPick.style.display !== 'none' &&
+        !inside(colorPick, t) && !inside(colorBtn, t)) {
+      colorPick.style.display = 'none';
+    }
+    // Template-picker
+    if (templatePick.style.display !== 'none' &&
+        !inside(templatePick, t) && !inside(templateBtn, t)) {
+      templatePick.style.display = 'none';
+    }
+  });
+})();
+
+// --- bootstrap ---
+initializeColorPicker();
+updateRender();
