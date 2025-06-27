@@ -1,12 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SS14 Document Formatter</title>
-    <style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>SS14 Document Formatter</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <style>
         /* General page styles */
         body {
             display: flex;
@@ -20,7 +19,7 @@
 /* Normal text should be in Noto Sans */
 .normal-text {
     font-family: 'Noto Sans', Arial, sans-serif;
-    line-height: 1.2;
+    line-height: 1.1;
     letter-spacing: 0.05em;
     display: inline; /*  Ensure inline behavior */
 }
@@ -35,19 +34,14 @@
 }
 
 /* Monospace only inside [mono] */
-.monospace {
-    font-family: "Courier New", Consolas, monospace !important; /*  Ensures only inside [mono] */
-    font-variant-ligatures: none;
-    font-variant-numeric: tabular-nums;
-    letter-spacing: 0.05em;
-    white-space: pre-wrap;
-    word-wrap: break-word;
-    font-weight: 500;
-    display: inline; /*  Prevent block behavior */
-}
-
-
-
+    .monospace{
+    font-family:"Courier New",Consolas,monospace!important;
+    letter-spacing:0.01em;          /* ← was 0.05, tighter */
+    white-space:pre;               /* keep literal spaces */
+    word-wrap:normal;              /* stop soft-wrapping mid-word */
+    font-weight:500;
+    display:inline;
+    }
         /* Toolbar styles */
         #toolbar {
             display: flex;
@@ -98,7 +92,7 @@
         font-family: 'Noto Sans', Arial, sans-serif; /*  Revert to normal font */
         white-space: pre-wrap; /*  Keeps text formatting */
         word-wrap: break-word;
-        line-height: 1.2;
+        line-height: 1.1;
         overflow-x: auto; /*  Prevents cut-off */
         overflow-y: auto;
 
@@ -131,7 +125,7 @@
             height: 30px;
             cursor: pointer;
             border: 1px solid #aaa;
-            border-radius: 5px; /* Rounded corners for a modern look */
+            border-radius: 5px; /* Rounded corners for a ss14 look */
             box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1); /* Subtle shadow */
             transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
@@ -153,28 +147,26 @@
         font-style: italic;
     }
 
-        .header-1 {
-        font-size: 2em;
-        font-weight: bold;
-        display: inline; /* Ensure inline behavior */
-        line-height: 0.9;
-    }
-
-    .header-2 {
-        font-size: 1.5em;
+                .header-1 {             /* absolute: 32 px wherever it sits   */
+        font-size: 2rem;      /* ← rem = “root em”, NOT affected by nesting */
         font-weight: bold;
         display: inline;
-        line-height: 0.8;
-    }
+        line-height: 1;       /* keep the tight SS14 look            */
+        }
 
-    .header-3 {
-        font-size: 1.2em;
+        .header-2 {
+        font-size: 1.5rem;    /* 24 px on default 16 px root size    */
         font-weight: bold;
         display: inline;
-        line-height: 0.7;
-    }
+        line-height: 1;
+        }
 
-
+        .header-3 {
+        font-size: 1.25rem;   /* 20 px                               */
+        font-weight: bold;
+        display: inline;
+        line-height: 1;
+        }
 
         /* Image container now positioned below render */
         .image-container {
@@ -244,38 +236,38 @@
             border-right: 1px solid #555555;
         }
         
-        body.dark-mode #render {
-            background-color: #fff9e5; /* Original background */
-            color: inherit;
-        }
-        
+        body.dark-mode #render{
+            background:#fff9e5;     /* keep the parchment colour */
+            color:#000;             /* always black text */
+    }   
+
         body.dark-mode .image-text {
             color: #ffffff;
         }
-        </style>
-       
+  </style>
 </head>
 <body>
-    <!-- Toolbar with buttons for formatting -->
-    <div id="toolbar">
-        <button onclick="insertTag('bold')">Bold</button>
-        <button onclick="insertTag('italic')">Italic</button>
-        <button onclick="insertTag('bolditalic')">Bold Italic</button>
-        <button onclick="insertTag('mono')">Monospace</button>
-        <button onclick="insertTag('header-1')">Header 1</button>
-        <button onclick="insertTag('header-2')">Header 2</button>
-        <button onclick="insertTag('header-3')">Header 3</button>
-        <button onclick="toggleColorPicker()">Color Picker</button>
-        <button onclick="insertHexColor()">Hex Color</button>
-        <button onclick="insertTag('bullet')">Bullet</button>
-        <button onclick="centerText()">Center Text</button>
-        <button onclick="document.getElementById('file-input').click()">Import .txt</button>
-        <input type="file" id="file-input" accept=".txt" style="display: none;" />
-        <button onclick="saveTextAsFile()">Save as .txt</button>
-        <button onclick="saveRenderAsImage()">Save as Image</button>
-        <button onclick="toggleDarkMode()">Toggle Dark Mode</button>
+  <div id="toolbar">
+    <!-- buttons… -->
+    <button onclick="insertTag('bold')">Bold</button>
+    <button onclick="insertTag('italic')">Italic</button>
+    <button onclick="insertTag('bolditalic')">Bold Italic</button>
+    <button onclick="insertTag('mono')">Monospace</button>
+    <button onclick="insertTag('head=1')">Header 1</button>
+    <button onclick="insertTag('head=2')">Header 2</button>
+    <button onclick="insertTag('head=3')">Header 3</button>
+    <button onclick="toggleColorPicker()">Color Picker</button>
+    <button onclick="insertHexColor()">Hex Color</button>
+    <button onclick="insertTag('bullet')">Bullet</button>
+    <button onclick="centerText()">Center Text</button>
+    <button onclick="document.getElementById('file-input').click()">Import .txt</button>
+    <input type="file" id="file-input" accept=".txt" style="display:none">
+    <button onclick="saveTextAsFile()">Save as .txt</button>
+    <button onclick="saveRenderAsImage()">Save as Image</button>
+    <button onclick="toggleDarkMode()">Toggle Dark Mode</button>
+    <button onclick="toggleTemplatePicker()">Templates</button>
 
-    </div>
+  </div>
 
     <!-- Editor for user input -->
     <textarea id="editor" placeholder="Type here and watch with amazement as it's rendered in the render area..."></textarea>
@@ -288,22 +280,28 @@
 
         <!-- Content below render -->
         <div class="image-container">
-            <p class="image-text">v6.</p>
+            <p class="image-text">v7 woohoo.</p>
             <img src="https://files.catbox.moe/gws2xt.png" alt="Placeholder Image">
             <p class="image-text">Made with love - Simon / Big Dave / Fred Blehurst<br>Special thanks to the the RMC14 community, support their project, the game is fun too!.</p>
-            <p class="image-text">#v6 changes: General Fixes to tags, you can now roll/nest tags successfully and they *hopfully* will behave like they do in game "eg: [head=1]head1 [head=2]head2[/head]head1[/head]nothead"</p>
-            <p class="image-text"> Fixed brackets not displaying correctly within Bold
-            <p class="image-text">   Added monospace, the font is wrong for it while i figure out how to balance text and some specific types of ascii art</p>
-            <p class="image-text">  Completely rewrote the render output</p>
-            <p class="image-text"> Wrote framework for templates for headers but haven't introduced it into this code yet</p>
-            <p class="image-text"> Added a feature to copy a photo of the render output</p>
-            <p class="image-text">Todo: Implement header templating, figure out how to format the rest of the git repo, slightly nicer ui, somehow understand the black magic of the scroll bar in game, fix monospacing, add entry fields</p>
+            <p class="image-text">#v7 changes: Nesting tags "hopefully" fixed completely</p>
+            <p class="image-text"> Added the option to use templates from the papercord git for rmc14 (not affilated, nor is this webapp)
+            <p class="image-text"> Bal'd' mono a bit more, hopefully it's a bit more representative of in game</p>
+            <p class="image-text"> proper bodged the way headers work because HTML doesn't like same line headers</p>
+            <p class="image-text"> Re-wrote most of the code since it was ass</p>
+            <p class="image-text">________________________________________</p>
+            <p class="image-text">Todo: Work on monospacing a bit more, add small tags when, general work on getting closer to 1-2-1</p>
             <p class="image-text">Please give me feedback as well as tips.</p>
         </div>
     </div>
 
-    <!-- Hidden color picker -->
-    <div id="color-picker" style="display: none; position: absolute;"></div>
+  <div id="color-picker" style="display:none;position:absolute;grid-template-columns:repeat(auto-fill,30px);gap:5px;"></div>
+  <div id="template-picker"
+     style="display:none;position:absolute;
+            min-width:220px;max-height:300px;overflow:auto;
+            padding:6px;border:1px solid #ccc;
+            background:#fff;z-index:1001;
+            font-family:monospace;font-size:14px"></div>
+
+  <script src="logic.js"></script>
 </body>
-<script src="logic.js"></script>  
 </html>
