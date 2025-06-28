@@ -1,55 +1,57 @@
 name: Sync templates
-
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 0 * * *'
+    - cron:  '0 0 * * *'
 
 jobs:
   sync:
     runs-on: ubuntu-latest
+    env:                      # ← expose the PAT once, plain – no quotes, no “Bearer”
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v3
 
       - name: Fetch latest upstream templates (recursive)
-        env:
-          GH_AUTH: |
-            -H 'Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' \
-            -H 'X-GitHub-Api-Version: 2022-11-28'
+        shell: bash
         run: |
           set -euo pipefail
 
           root="templates"
           rm -rf "$root" && mkdir -p "$root"
 
-          branch=$(curl -fsSL $GH_AUTH \
-                   https://api.github.com/repos/crazy1112345/RMC14Paperwork |
+          gh_api() {                                   # little helper
+            curl -fsSL \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              "$@"
+          }
+
+          branch=$(gh_api https://api.github.com/repos/crazy1112345/RMC14Paperwork |
                    jq -r .default_branch)
 
-          sha=$(curl -fsSL $GH_AUTH \
-                 https://api.github.com/repos/crazy1112345/RMC14Paperwork/branches/$branch |
-                 jq -r .commit.sha)
+          sha=$(gh_api https://api.github.com/repos/crazy1112345/RMC14Paperwork/branches/$branch |
+                jq -r .commit.sha)
 
           mapfile -t paths < <(
-            curl -fsSL $GH_AUTH \
-              "https://api.github.com/repos/crazy1112345/RMC14Paperwork/git/trees/$sha?recursive=1" |
+            gh_api "https://api.github.com/repos/crazy1112345/RMC14Paperwork/git/trees/$sha?recursive=1" |
             jq -r '.tree[] | select(.type=="blob") | .path' |
             grep -E '^Main/.*\.txt$' || true
           )
 
           if [[ ${#paths[@]} -eq 0 ]]; then
-            echo '[]' > "$root/index.json"
-            exit 0
+            echo '[]' > "$root/index.json";  exit 0
           fi
 
           for path in "${paths[@]}"; do
             rel=${path#Main/}
             mkdir -p "$root/$(dirname "$rel")"
-            curl -fsSL $GH_AUTH \
-              -H 'Accept: application/vnd.github.v3.raw' \
-              "https://raw.githubusercontent.com/crazy1112345/RMC14Paperwork/$sha/$path" \
-              -o "$root/$rel"
+            curl -fsSL \
+                 -H "Authorization: Bearer $GH_TOKEN" \
+                 -H 'Accept: application/vnd.github.v3.raw' \
+                 "https://raw.githubusercontent.com/crazy1112345/RMC14Paperwork/$sha/$path" \
+                 -o "$root/$rel"
           done
 
-          (cd "$root" && find . -type f -name '*.txt' -print0) |
+          ( cd "$root" && find . -type f -name '*.txt' -print0 ) |
             jq -Rs -c 'split("\u0000")[:-1]' > "$root/index.json"
