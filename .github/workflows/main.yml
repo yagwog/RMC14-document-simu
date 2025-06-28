@@ -33,8 +33,12 @@ jobs:
               -o "$root/$rel"
           done
 
-          ( cd "$root" && find . -type f -name '*.txt' -print0 ) |
-            jq -Rs -c 'split("\u0000")[:-1]' > "$root/index.json"
+          txt_files=$(cd "$root" && find . -type f -name '*.txt' -print0)
+          if [[ -n "$txt_files" ]]; then
+          printf '%s' "$txt_files" | jq -Rs -c 'split("\u0000")[:-1]' > "$root/index.json"
+          else
+            echo '[]' > "$root/index.json"
+          fi
 
       - name: Commit & push
         run: |
