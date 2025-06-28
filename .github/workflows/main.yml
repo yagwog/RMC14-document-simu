@@ -1,0 +1,41 @@
+# .github/workflows/sync-templates.yml
+name: Mirror paper-card templates
+on:                         # run whenever you want fresh files
+  schedule:                 #   – once per hour is plenty
+    - cron: '0 * * * *'     
+  workflow_dispatch:        # manual “Run workflow” button
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout website repo
+        uses: actions/checkout@v4
+        with: { fetch-depth: 0 }    # we’ll commit back
+
+      - name: Fetch latest upstream templates
+        run: |
+          mkdir -p templates
+          rm -rf  templates/*                               # clean old
+          curl -L https://api.github.com/repos/crazy1112345/RMC14Paperwork/contents/Main?per_page=100 \
+            -H 'Accept: application/vnd.github.v3.raw' -o /tmp/ls.json
+          
+          # 1-level-deep walk & copy only *.txt
+          jq -r '.[] | select(.type=="file") | .download_url' /tmp/ls.json |
+          while read url; do
+            fname=${url##*/}
+            curl -L "$url" -o "templates/$fname"
+          done
+          
+          # build an index.json that your front-end can list quickly
+          jq -R -s -c 'split("\n")[:-1]' <(ls templates/*.txt) \
+            | sed 's#"templates/##g' > templates/index.json
+          
+      - name: Commit & push if anything changed
+        run: |
+          git config user.name  "template-bot"
+          git config user.email "actions@users.noreply.github.com"
+          if ! git diff --quiet templates; then
+             git add templates
+             git commit -m "chore: auto-sync templates $(date -u '+%Y-%m-%d %H:%M')"
+             git push
+          fi
