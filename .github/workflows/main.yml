@@ -33,9 +33,10 @@ jobs:
               -o "$root/$rel"
           done
 
-          txt_files=$(cd "$root" && find . -type f -name '*.txt' -print0)
-          if [[ -n "$txt_files" ]]; then
-          printf '%s' "$txt_files" | jq -Rs -c 'split("\u0000")[:-1]' > "$root/index.json"
+          # Safer index.json creation
+          txts=$(cd "$root" && find . -type f -name '*.txt' -print0)
+          if [[ -n "$txts" ]]; then
+            printf "%s" "$txts" | jq -Rs -c 'split("\u0000")[:-1]' > "$root/index.json"
           else
             echo '[]' > "$root/index.json"
           fi
