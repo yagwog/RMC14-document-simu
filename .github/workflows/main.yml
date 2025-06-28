@@ -34,11 +34,11 @@ jobs:
           done
 
           # Safer index.json creation
-          txts=$(cd "$root" && find . -type f -name '*.txt' -print0)
-          if [[ -n "$txts" ]]; then
-            printf "%s" "$txts" | jq -Rs -c 'split("\u0000")[:-1]' > "$root/index.json"
+          cd "$root"
+          if find . -type f -name '*.txt' | grep -q .; then
+            find . -type f -name '*.txt' -print0 | jq -Rs -c 'split("\u0000")[:-1]' > index.json
           else
-            echo '[]' > "$root/index.json"
+            echo '[]' > index.json
           fi
 
       - name: Commit & push
