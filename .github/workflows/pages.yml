@@ -1,15 +1,29 @@
+# .github/workflows/pages.yml
 name: Build & deploy GitHub Pages
 on:
   push:
-    branches: [ main ]          # or your default branch
+    branches: [ main ]          # your default branch
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 jobs:
   pages:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      # 1 – checkout, including sub-modules
+      - uses: actions/checkout@v4       # v4 is current
         with:
-          submodules: recursive # <- pulls templates-upstream/*
-      - uses: actions/upload-pages-artifact@v2
+          submodules: recursive         # pulls templates-upstream/*
+
+      # 2 – (if you build anything, insert build steps here)
+
+      # 3 – package site as an artifact (v4!)
+      - uses: actions/upload-artifact@v4
         with:
-          path: .
+          name: github-pages
+          path: .                       # root of the web-site
+
+      # 4 – tell Pages to deploy the artifact
       - uses: actions/deploy-pages@v2
