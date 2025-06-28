@@ -1,0 +1,47 @@
+name: Sync templates from Paperwork repo
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron:  '0 2 * * *'      # every day 02:00 UTC
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Fetch latest upstream templates (recursive)
+        run: |
+          set -e
+          root="templates"
+          rm -rf "$root" && mkdir -p "$root"
+
+          # default-branch → commit SHA
+          branch=$(curl -s https://api.github.com/repos/crazy1112345/RMC14Paperwork | jq -r .default_branch)
+          sha=$(curl -s https://api.github.com/repos/crazy1112345/RMC14Paperwork/branches/$branch | jq -r .commit.sha)
+
+          # full tree
+          curl -s "https://api.github.com/repos/crazy1112345/RMC14Paperwork/git/trees/$sha?recursive=1" \
+            | jq -r '.tree[] | select(.type=="blob") | .path' > /tmp/all.txt
+
+          grep -E '^Main/.*\.txt$' /tmp/all.txt | while read path; do
+            rel=${path#Main/}
+            mkdir -p "$root/$(dirname "$rel")"
+            curl -L -s -H 'Accept: application/vnd.github.v3.raw' \
+              "https://raw.githubusercontent.com/crazy1112345/RMC14Paperwork/$sha/$path" \
+              -o "$root/$rel"
+          done
+
+          ( cd "$root" && find . -type f -name '*.txt' -print0 ) |
+            jq -Rs -c 'split("\u0000")[:-1]' > "$root/index.json"
+
+      - name: Commit & push
+        run: |
+          if [[ -n $(git status --porcelain templates) ]]; then
+            git config user.name  github-actions
+            git config user.email github-actions@users.noreply.github.com
+            git add templates
+            git commit -m "chore: sync templates from Paperwork repo"
+            git push
+          fi
