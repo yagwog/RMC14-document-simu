@@ -1,0 +1,6 @@
+# inside the root of your repo
+git submodule add --depth 1 \
+  https://github.com/crazy1112345/RMC14Paperwork.git \
+  templates-upstream
+git commit -m "Add RMC14 paperwork as submodule"
+git push
