@@ -1,0 +1,15 @@
+name: Build & deploy GitHub Pages
+on:
+  push:
+    branches: [ main ]          # or your default branch
+jobs:
+  pages:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive # <- pulls templates-upstream/*
+      - uses: actions/upload-pages-artifact@v2
+        with:
+          path: .
+      - uses: actions/deploy-pages@v2
