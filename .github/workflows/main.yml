@@ -1,55 +1,55 @@
-name: Sync templates from Paperwork repo
+name: Sync templates
 
 on:
   workflow_dispatch:
   schedule:
-    - cron:  '0 2 * * *'      # every day 02:00 UTC
+    - cron: '0 0 * * *'
 
 jobs:
-  fetch:
+  sync:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
 
-      - name: Install jq
-        run: sudo apt-get update && sudo apt-get install -y jq
-
       - name: Fetch latest upstream templates (recursive)
+        env:
+          GH_AUTH: |
+            -H 'Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' \
+            -H 'X-GitHub-Api-Version: 2022-11-28'
         run: |
-          set -e
+          set -euo pipefail
+
           root="templates"
           rm -rf "$root" && mkdir -p "$root"
 
-          # default-branch → commit SHA
-          branch=$(curl -s https://api.github.com/repos/crazy1112345/RMC14Paperwork | jq -r .default_branch)
-          sha=$(curl -s https://api.github.com/repos/crazy1112345/RMC14Paperwork/branches/$branch | jq -r .commit.sha)
+          branch=$(curl -fsSL $GH_AUTH \
+                   https://api.github.com/repos/crazy1112345/RMC14Paperwork |
+                   jq -r .default_branch)
 
-          # full tree
-          curl -s "https://api.github.com/repos/crazy1112345/RMC14Paperwork/git/trees/$sha?recursive=1" \
-            | jq -r '.tree[] | select(.type=="blob") | .path' > /tmp/all.txt
+          sha=$(curl -fsSL $GH_AUTH \
+                 https://api.github.com/repos/crazy1112345/RMC14Paperwork/branches/$branch |
+                 jq -r .commit.sha)
 
-          grep -E '^Main/.*\.txt$' /tmp/all.txt | while read path; do
+          mapfile -t paths < <(
+            curl -fsSL $GH_AUTH \
+              "https://api.github.com/repos/crazy1112345/RMC14Paperwork/git/trees/$sha?recursive=1" |
+            jq -r '.tree[] | select(.type=="blob") | .path' |
+            grep -E '^Main/.*\.txt$' || true
+          )
+
+          if [[ ${#paths[@]} -eq 0 ]]; then
+            echo '[]' > "$root/index.json"
+            exit 0
+          fi
+
+          for path in "${paths[@]}"; do
             rel=${path#Main/}
             mkdir -p "$root/$(dirname "$rel")"
-            curl -L -s -H 'Accept: application/vnd.github.v3.raw' \
+            curl -fsSL $GH_AUTH \
+              -H 'Accept: application/vnd.github.v3.raw' \
               "https://raw.githubusercontent.com/crazy1112345/RMC14Paperwork/$sha/$path" \
               -o "$root/$rel"
           done
 
-          # Safer index.json creation
-          cd "$root"
-          if find . -type f -name '*.txt' | grep -q .; then
-            find . -type f -name '*.txt' -print0 | jq -Rs -c 'split("\u0000")[:-1]' > index.json || echo '[]' > index.json
-          else
-            echo '[]' > index.json
-          fi
-
-      - name: Commit & push
-        run: |
-          if [[ -n $(git status --porcelain templates) ]]; then
-            git config user.name  github-actions
-            git config user.email github-actions@users.noreply.github.com
-            git add templates
-            git commit -m "chore: sync templates from Paperwork repo"
-            git push
-          fi
+          (cd "$root" && find . -type f -name '*.txt' -print0) |
+            jq -Rs -c 'split("\u0000")[:-1]' > "$root/index.json"
