@@ -11,6 +11,9 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
       - name: Fetch latest upstream templates (recursive)
         run: |
           set -e
@@ -36,7 +39,7 @@ jobs:
           # Safer index.json creation
           cd "$root"
           if find . -type f -name '*.txt' | grep -q .; then
-            find . -type f -name '*.txt' -print0 | jq -Rs -c 'split("\u0000")[:-1]' > index.json
+            find . -type f -name '*.txt' -print0 | jq -Rs -c 'split("\u0000")[:-1]' > index.json || echo '[]' > index.json
           else
             echo '[]' > index.json
           fi
