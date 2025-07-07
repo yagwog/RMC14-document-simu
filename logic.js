@@ -99,10 +99,16 @@ function insertTag(tag) {
         sel = ed.value.slice(s,e);
   if (tag==='bullet') {
     ed.value = ed.value.slice(0,s) + '• ' + ed.value.slice(s);
+    ed.setSelectionRange(s+2, s+2);
   } else {
-    ed.value = ed.value.slice(0,s)
-             + `[${tag}]${sel}[/${ tag.split('=')[0] }]`
-             + ed.value.slice(e);
+    const openTag = `[${tag}]`;
+    const closeTag = `[/${tag.split('=')[0]}]`;
+    ed.value = ed.value.slice(0,s) + openTag + sel + closeTag + ed.value.slice(e);
+    if (sel.length === 0) {
+      ed.setSelectionRange(s + openTag.length, s + openTag.length);
+    } else {
+      ed.setSelectionRange(s + openTag.length + sel.length + closeTag.length, s + openTag.length + sel.length + closeTag.length);
+    }
   }
   ed.focus();
   updateRender();
@@ -381,6 +387,7 @@ function updateRender() {
                 .replace(/&/g, '&amp;')
                 .replace(/</g, '&lt;')
                 .replace(/>/g, '&gt;')
+                .replace(/_/g, '<span class="underscore-normal">_</span>')
                 .replace(/  /g,' &nbsp;');
         }
     });

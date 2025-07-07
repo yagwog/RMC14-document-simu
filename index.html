@@ -67,7 +67,7 @@
         }
         
         #render {
-        width: 540px;
+        width: 520px;
         min-height: 724px;
         padding: 20px;
         background-color: #fff9e5;
@@ -75,7 +75,7 @@
         font-size: 16px;
         white-space: pre-wrap;
         word-wrap: break-word;
-        line-height: 1.2;
+        line-height: 1.35;
         overflow-wrap: break-word;
         box-sizing: border-box;
         border-radius: 40px;
@@ -87,6 +87,15 @@
         text-rendering: geometricPrecision;
         font-kerning: none;
 }
+
+        /* Force underscores to use monospace font to maintain width */
+        .underscore-normal {
+            font-family: 'Courier New', monospace !important;
+            font-style: normal !important;
+            display: inline;
+        }
+
+
 
             #color-picker {
         position: absolute;
