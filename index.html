@@ -16,32 +16,15 @@
             height: 100vh;
         }
         
-/* Normal text should be in Noto Sans */
-.normal-text {
-    font-family: 'Noto Sans', Arial, sans-serif;
-    line-height: 1.1;
-    letter-spacing: 0.05em;
-    display: inline; /*  Ensure inline behavior */
-}
-
-/* Box-drawing and ASCII characters */
-.ascii-art {
-    font-family: "Courier New", Consolas, monospace !important;
-    font-size: 1em;
+.monospace {
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace !important;
+    font-size: 18px;
+    letter-spacing: 0;
     white-space: pre;
     word-wrap: normal;
-    display: inline-block; /*  Ensures characters align properly */
+    display: inline;
+    line-height: 1.0;
 }
-
-/* Monospace only inside [mono] */
-    .monospace{
-    font-family:"Courier New",Consolas,monospace!important;
-    letter-spacing:0.01em;          /* ← was 0.05, tighter */
-    white-space:pre;               /* keep literal spaces */
-    word-wrap:normal;              /* stop soft-wrapping mid-word */
-    font-weight:500;
-    display:inline;
-    }
         /* Toolbar styles */
         #toolbar {
             display: flex;
@@ -84,23 +67,25 @@
         }
         
         #render {
-        width: 100%; /* Make render fill the available space */
-        min-width: 540px;
-        max-width: 540px; /* Add a max width for readability */
+        width: 540px;
+        min-height: 724px;
         padding: 20px;
         background-color: #fff9e5;
-        font-family: 'Noto Sans', Arial, sans-serif; /*  Revert to normal font */
-        white-space: pre-wrap; /*  Keeps text formatting */
+        font-family: 'Noto Sans', Arial, sans-serif;
+        font-size: 16px;
+        white-space: pre-wrap;
         word-wrap: break-word;
-        line-height: 1.1;
-        overflow-x: auto; /*  Prevents cut-off */
-        overflow-y: auto;
-
+        line-height: 1.2;
+        overflow-wrap: break-word;
         box-sizing: border-box;
         border-radius: 40px;
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
         border: 1px solid #ddd;
         color: #000;
+        font-variant-ligatures: none;
+        letter-spacing: 0;
+        text-rendering: geometricPrecision;
+        font-kerning: none;
 }
 
             #color-picker {
@@ -147,22 +132,22 @@
         font-style: italic;
     }
 
-                .header-1 {             /* absolute: 32 px wherever it sits   */
-        font-size: 2rem;      /* ← rem = “root em”, NOT affected by nesting */
+        .header-1 {
+        font-size: 2rem;
         font-weight: bold;
         display: inline;
-        line-height: 1;       /* keep the tight SS14 look            */
+        line-height: 1;
         }
 
         .header-2 {
-        font-size: 1.5rem;    /* 24 px on default 16 px root size    */
+        font-size: 1.5rem;
         font-weight: bold;
         display: inline;
         line-height: 1;
         }
 
         .header-3 {
-        font-size: 1.25rem;   /* 20 px                               */
+        font-size: 1.25rem;
         font-weight: bold;
         display: inline;
         line-height: 1;
@@ -308,10 +293,12 @@
   <div id="color-picker" style="display:none;position:absolute;grid-template-columns:repeat(auto-fill,30px);gap:5px;"></div>
   <div id="template-picker"
      style="display:none;position:absolute;
-            min-width:220px;max-height:300px;overflow:auto;
-            padding:6px;border:1px solid #ccc;
-            background:#fff;z-index:1001;
-            font-family:monospace;font-size:14px"></div>
+            min-width:320px;max-height:400px;overflow:auto;
+            padding:12px;border:2px solid #4a90e2;
+            background:linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.15);
+            z-index:1001;font-family:'Segoe UI',sans-serif;font-size:13px;
+            backdrop-filter:blur(10px)"></div>
 
   <script src="logic.js"></script>
 </body>

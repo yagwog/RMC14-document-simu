@@ -1,0 +1,37 @@
+# Sync templates from upstream repo efficiently
+name: Sync Templates
+on:
+  schedule:
+    - cron: '0 6 * * *'  # Daily at 6 AM UTC
+  workflow_dispatch:     # Manual trigger
+  
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          submodules: false
+          
+      - name: Update submodule
+        run: |
+          git submodule update --init --remote templates-upstream
+          
+      - name: Check for changes
+        id: changes
+        run: |
+          if git diff --quiet HEAD -- templates-upstream/; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Commit and push if changed
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add templates-upstream/
+          git commit -m "Auto-sync templates from upstream"
+          git push

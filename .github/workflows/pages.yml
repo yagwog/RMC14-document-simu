@@ -2,7 +2,11 @@
 name: Build & deploy GitHub Pages
 on:
   push:
-    branches: [ main ]          # your default branch
+    branches: [ main ]
+  workflow_run:
+    workflows: ["Sync Templates"]
+    types: [completed]
+    
 permissions:
   contents: read
   pages: write
@@ -12,13 +16,15 @@ jobs:
   pages:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4       # v4 is current
+      - uses: actions/checkout@v4
         with:
-          submodules: recursive         # pulls templates-upstream/*
-
-      - uses: actions/upload-artifact@v4
+          submodules: recursive
+          
+      - name: Configure Pages
+        uses: actions/configure-pages@v4
+        
+      - uses: actions/upload-pages-artifact@v3
         with:
-          name: github-pages
-          path: .                       # root of the web-site
-
-      - uses: actions/deploy-pages@v2
+          path: .
+          
+      - uses: actions/deploy-pages@v4

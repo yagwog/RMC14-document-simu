@@ -1,5 +1,5 @@
-        // Define supported named colors
-        const namedColors = {
+// Define supported named colors
+const namedColors = {
     "Black": "#000000", "DimGray": "#696969", "Gray": "#808080", "DarkGray": "#A9A9A9",
     "Silver": "#C0C0C0", "Gainsboro": "#DCDCDC", "WhiteSmoke": "#F5F5F5", "White": "#FFFFFF",
 
@@ -43,6 +43,14 @@
     "Ivory": "#FFFFF0", "Beige": "#F5F5DC", "Linen": "#FAF0E6",
     "OldLace": "#FDF5E6", "WhiteSmoke": "#F5F5F5", "GhostWhite": "#F8F8FF",
     "AliceBlue": "#F0F8FF", };
+
+// SS14 Font Constants (browser adjusted)
+const SS14_DEFAULT_SIZE = 16;
+
+// SS14 Header calculation: Math.Ceiling(DefaultSize * 2 / Math.Sqrt(level))
+function getHeaderSize(level) {
+    return Math.ceil(SS14_DEFAULT_SIZE * 2 / Math.sqrt(level));
+}
 
 function initializeColorPicker() {
   const p = document.getElementById('color-picker');
@@ -135,7 +143,6 @@ function saveRenderAsImage(){
   });
 }
 
-
 document.getElementById('file-input').addEventListener('change', e=>{
   const f = e.target.files[0], r = new FileReader();
   r.onload = ()=>{ document.getElementById('editor').value = r.result; updateRender(); };
@@ -170,6 +177,130 @@ document.addEventListener('keydown', ev=>{
 function toggleDarkMode() {
   document.body.classList.toggle('dark-mode');
 }
+
+// ─── TEMPLATE PICKER ──────────────────────────────────────────
+let templateCache = null;
+
+async function toggleTemplatePicker() {
+  const picker = document.getElementById('template-picker');
+  if (picker.style.display === 'block') {           // hide
+    picker.style.display = 'none';
+    return;
+  }
+
+  // 1) first-time fetch?
+  if (!templateCache) {
+    picker.innerHTML = 'loading…';
+    templateCache = await fetchTemplates();
+  }
+
+  // 2) build / rebuild the tree every time (cheap)
+  picker.innerHTML = buildTemplateTree(templateCache);
+  picker.style.display = 'block';
+
+  // position next to toolbar
+  const tb = document.getElementById('toolbar').getBoundingClientRect();
+  picker.style.top  = `${tb.top + 10}px`;
+  picker.style.left = `${tb.right + 10}px`;
+}
+
+// Fetch templates from local submodule via GitHub Pages
+async function fetchTemplates() {
+  const baseUrl = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '') + '/templates-upstream/Main/Updated%20RMC14/';
+  
+  // Template structure - update this when new categories are added
+  const structure = {
+    'Command': ['C-402 Regional or High Command Correspondence.txt', 'C-486 Squad Comp Report.txt', 'C-501 General Deployment Request.txt', 'C-594 Enlistment Form.txt', 'C-619 Recomendation for Award.txt', 'C-999 Nuclear Authorization Request.txt'],
+    'Medical': ['M-106 Certification of Death.txt', 'M-133 Morgue Autopsy Report.txt', 'M-210 Prescription Slip.txt', 'M-212 Medical Bay Preparedness.txt', 'M-389 Req form.txt', 'M-488 Psych Eval.txt', 'M-489 Declaration of Insanity.txt', 'M-532 Deployment Request.txt', 'M-62 GC Waiver.txt', 'M-BT012 DEAD Casevac Bag Tag.txt', 'M-BT013 LARVA Casevac Bag Tag.txt'],
+    'MP': ['P-304 Armory Request form.txt', 'P-401 Incident Report.txt', 'P-402 Provost correspondence.txt', 'P-403 Arrest Report.txt', 'P-404 Witness Statement.txt', 'P-409 Arrest Record.txt', 'P-415 Record of Misuse of Authority.txt', 'P-508 Search Warrant.txt', 'P-509 Arrest Warrant.txt', 'P-512 Deployment Request.txt', 'P-605 Criminal Appeal.txt', 'Execution Order.txt'],
+    'Engineering': ['E-389 Engineering Supply Request.txt', 'E-436 Work-order.txt', 'E-465 OB Usage.txt', 'E-482 Shipside Modification Request.txt', 'E-501 Deployment Request.txt'],
+    'Req': ['R-301 Supply Drop Manifest.txt', 'R-304 General Armory Request.txt', 'R-306 Suppy Drop Request.txt', 'R-315 Expenditure Report.txt', 'R-389 Requisitions Request.txt', 'R-M39 Medical Supply Request.txt'],
+    'Squads': ['S-404 After Action Review.txt', 'S-A5 Alpha Personnel Roster.txt', 'S-B5 Bravo Personnel Roster.txt', 'S-C5 Charlie Personnel Roster.txt', 'S-D5 Delta Personnel Roster.txt', 'S-E1 Echo Transfer Request.txt', 'S-M59 Marine Service Record.txt', 'Liberty Pass.txt'],
+    'Weston-Yamada': ['CL-000 Generic Fax Template.txt', 'CL-402 We-Ya correspondence.txt', 'CL-433 Colony Incident Report.txt', 'CL-435 Liaison Operations Report.txt', 'CL-524 Liasion Deployment Request.txt', 'CL-529 Special Assignment (we-ya marine).txt', 'CL-532 Correspondent Agreement.txt', 'CL-563 Last Will and Testament.txt', 'CL-563A Compensation Stipulations.txt', 'CL-579 PMC Request Form.txt', 'CL-602 General NDA.txt', 'CL-604 Colonist NDA.txt', 'CL-609 Feedback Form.txt', 'CL-654 Asset Protection Agreement.txt', 'CL-658 Intel Review Request.txt', 'CL-679 Cease and Desist.txt', 'CL-694 Claims Waiver.txt']
+  };
+  
+  let templates = [];
+  for (const [folder, files] of Object.entries(structure)) {
+    for (const file of files) {
+      templates.push({
+        path: `${folder}/${file}`,
+        url: `${baseUrl}${folder}/${encodeURIComponent(file)}`
+      });
+    }
+  }
+  return templates;
+}
+
+function buildTemplateTree(files) {
+  const root = {};
+  files.forEach(f => {
+    const parts = f.path.split('/');
+    let node = root;
+    parts.forEach((p,i) => {
+      if (!node[p]) node[p] = (i === parts.length-1) ? f.url : {};
+      node = node[p];
+    });
+  });
+
+  function render(node, indent='', level=0) {
+    return Object.entries(node).map(([name,val])=>{
+      if (typeof val === 'string') {
+        return `<div style="cursor:pointer;padding:4px 8px;margin:2px 0;
+                           border-radius:4px;transition:all 0.2s;
+                           background:rgba(74,144,226,0.1);color:#2c3e50;"
+                     onmouseover="this.style.background='rgba(74,144,226,0.2)'"
+                     onmouseout="this.style.background='rgba(74,144,226,0.1)'"
+                     onclick="loadTemplate('${val.replace(/'/g,"\\'")}')">
+                  ${indent}📄 <span style="font-weight:500">${name}</span></div>`;
+      }
+      return `<div style="margin:${level*2}px 0;padding:4px 0;">
+                <div style="font-weight:bold;color:#34495e;font-size:14px;">
+                  ${indent}📂 ${name}</div>
+                <div style="margin-left:16px;">${render(val, indent+'  ', level+1)}</div>
+              </div>`;
+    }).join('');
+  }
+  return `<div style="color:#2c3e50;line-height:1.4;">${render(root)}</div>`;
+}
+
+// fetch file → put into #editor
+async function loadTemplate(rawUrl) {
+  try {
+    const txt = await (await fetch(rawUrl)).text();
+    const ed  = document.getElementById('editor');
+    ed.value  = txt;
+    updateRender();
+    document.getElementById('template-picker').style.display='none';
+  } catch (e) {
+    alert('Failed to load template ☹');
+  }
+}
+
+// ─── CLICK-AWAY HIDER FOR PICKERS ────────────────────────────────
+(() => {
+  // cache the DOM nodes we care about once:
+  const colorBtn   = document.querySelector('button[onclick^="toggleColorPicker"]');
+  const templateBtn= document.querySelector('button[onclick^="toggleTemplatePicker"]');
+  const colorPick  = document.getElementById('color-picker');
+  const templatePick = document.getElementById('template-picker');
+
+  // helper: is the click inside a given element?
+  function inside(node, target) { return node && target && node.contains(target); }
+
+  document.addEventListener('click', (ev) => {
+    const t = ev.target;
+    // Colour-picker
+    if (colorPick.style.display !== 'none' &&
+        !inside(colorPick, t) && !inside(colorBtn, t)) {
+      colorPick.style.display = 'none';
+    }
+    // Template-picker
+    if (templatePick.style.display !== 'none' &&
+        !inside(templatePick, t) && !inside(templateBtn, t)) {
+      templatePick.style.display = 'none';
+    }
+  });
+})();
 
 // ─── updateRender ───────────────────────────────────────────────────────────
 function updateRender() {
@@ -264,141 +395,6 @@ function updateRender() {
 
     renderDiv.innerHTML = output;
 }
-
-function htmlOpenFor(tag, param = '') {
-  switch (tag) {
-    case 'bold': return '<b>';
-    case 'italic': return '<i>';
-    case 'bolditalic': return '<b><i>';
-    case 'mono': return '<span class="monospace">';
-    case 'color': return `<span style="color:${param}">`;
-    default: return '';
-  }
-}
-
-function htmlCloseFor(tag) {
-  const baseTag = tag.split('=')[0];
-  switch (baseTag) {
-    case 'bold': return '</b>';
-    case 'italic': return '</i>';
-    case 'bolditalic': return '</i></b>';
-    case 'mono':
-    case 'color':
-    case 'head':
-      return '</span>';
-    default: return '';
-  }
-}
-
-// ─── TEMPLATE PICKER ──────────────────────────────────────────
-let templateCache = null;
-
-async function toggleTemplatePicker() {
-  const picker = document.getElementById('template-picker');
-  if (picker.style.display === 'block') {           // hide
-    picker.style.display = 'none';
-    return;
-  }
-
-  // 1) first-time fetch?
-  if (!templateCache) {
-    picker.innerHTML = 'loading…';
-    templateCache = await fetchTemplates();
-  }
-
-  // 2) build / rebuild the tree every time (cheap)
-  picker.innerHTML = buildTemplateTree(templateCache);
-  picker.style.display = 'block';
-
-  // position next to toolbar
-  const tb = document.getElementById('toolbar').getBoundingClientRect();
-  picker.style.top  = `${tb.top + 10}px`;
-  picker.style.left = `${tb.right + 10}px`;
-}
-
-// returns an array of { path:"folder/file.txt", url:"raw-url" }
-async function fetchTemplates() {
-  const API   = 'https://api.github.com/repos/crazy1112345/RMC14Paperwork/contents/Main/Updated%20RMC14';
-  async function walk(url, basePath='') {
-    const res  = await fetch(url);
-    const list = await res.json();
-    let out    = [];
-    for (const item of list) {
-      if (item.type === 'file' && item.name.endsWith('.txt')) {
-        out.push({path: basePath + item.name, url: item.download_url});
-      } else if (item.type === 'dir') {
-        out = out.concat(await walk(item.url, basePath + item.name + '/'));
-      }
-    }
-    return out;
-  }
-  return walk(API);
-}
-
-function buildTemplateTree(files) {
-  // files is flat; build simple <ul><li> structure by path parts
-  const root = {};
-  files.forEach(f => {
-    const parts = f.path.split('/');
-    let node = root;
-    parts.forEach((p,i) => {
-      if (!node[p]) node[p] = (i === parts.length-1) ? f.url : {};
-      node = node[p];
-    });
-  });
-
-  function render(node, indent='') {
-    return Object.entries(node).map(([name,val])=>{
-      if (typeof val === 'string') {        // file
-        return `<div style="cursor:pointer"
-                     onclick="loadTemplate('${val.replace(/'/g,"\\'")}')">
-                  ${indent}📄 ${name}</div>`;
-      }
-      // folder
-      return `<div>${indent}📂 <b>${name}</b></div>${render(val, indent+'  ')}`;
-    }).join('');
-  }
-  return render(root);
-}
-
-// fetch file → put into #editor
-async function loadTemplate(rawUrl) {
-  try {
-    const txt = await (await fetch(rawUrl)).text();
-    const ed  = document.getElementById('editor');
-    ed.value  = txt;
-    updateRender();
-    document.getElementById('template-picker').style.display='none';
-  } catch (e) {
-    alert('Failed to load template ☹');
-  }
-}
-
-// ─── CLICK-AWAY HIDER FOR PICKERS ────────────────────────────────
-(() => {
-  // cache the DOM nodes we care about once:
-  const colorBtn   = document.querySelector('button[onclick^="toggleColorPicker"]');
-  const templateBtn= document.querySelector('button[onclick^="toggleTemplatePicker"]');
-  const colorPick  = document.getElementById('color-picker');
-  const templatePick = document.getElementById('template-picker');
-
-  // helper: is the click inside a given element?
-  function inside(node, target) { return node && target && node.contains(target); }
-
-  document.addEventListener('click', (ev) => {
-    const t = ev.target;
-    // Colour-picker
-    if (colorPick.style.display !== 'none' &&
-        !inside(colorPick, t) && !inside(colorBtn, t)) {
-      colorPick.style.display = 'none';
-    }
-    // Template-picker
-    if (templatePick.style.display !== 'none' &&
-        !inside(templatePick, t) && !inside(templateBtn, t)) {
-      templatePick.style.display = 'none';
-    }
-  });
-})();
 
 // --- bootstrap ---
 initializeColorPicker();
