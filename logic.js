@@ -346,21 +346,30 @@ function updateRender() {
                     stack.push({ tag: 'color', param });   // ← keep the colour for later re-open
                     break;
                     case 'head':
-                        spanClass = `header-${param}`;
-                        output += `<span class="${spanClass}">`;
-                        stack.push({tag: 'head', param}); break;
+                        const headerSize = Math.ceil(SS14_DEFAULT_SIZE * 2 / Math.sqrt(parseInt(param)));
+                        const headerWeight = param == 1 ? 'bold' : param == 2 ? '600' : '500';
+                        output += `<span style="font-size:${headerSize}px; line-height:0; font-weight:${headerWeight}; display:inline-block; vertical-align:middle;">`;
+                        stack.push({ tag: 'head', param });
+                        break;
                     default: break;
                 }
             }
         } else if (closeMatch) {
             const tag = closeMatch[1];
+            
+            if (tag === 'bullet') {
+                output += '• ';
+                return;
+            }
+            
             let tempStack = [];
 
             while (stack.length) {
                 const last = stack.pop();
                 if (last.tag === 'bold') output += '</b>';
                 else if (last.tag === 'italic') output += '</i>';
-                else if (last.tag === 'bolditalic') output += '</i></b>';   
+                else if (last.tag === 'bolditalic') output += '</i></b>';
+                else if (last.tag === 'bullet') { /* bullet has no closing output */ }
                 else output += '</span>';
 
                 if (last.tag === tag) break;
@@ -375,8 +384,13 @@ function updateRender() {
             case 'italic':      output += '<i>';                      break;
             case 'mono':        output += '<span class="monospace">'; break;
             case 'color':       output += `<span style="color:${reopened.param}">`; break;
-            case 'head':        output += `<span class="header-${reopened.param}">`; break;
+            case 'head':        
+                const reopenSize = Math.ceil(SS14_DEFAULT_SIZE * 2 / Math.sqrt(parseInt(reopened.param || 1)));
+                const reopenWeight = reopened.param == 1 ? 'bold' : reopened.param == 2 ? '600' : '500';
+                output += `<span style="font-size:${reopenSize}px; line-height:0; font-weight:${reopenWeight}; display:inline-block; vertical-align:middle;">`;
+                break;
             case 'bolditalic':  output += '<b><i>';                   break;
+            case 'bullet':      output += '• ';                   break;
             default: break;
             }
                 stack.push(reopened);
