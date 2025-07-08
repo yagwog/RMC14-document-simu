@@ -70,7 +70,7 @@
         width: 520px;
         min-height: 724px;
         padding: 20px;
-        background-color: #fff9e5;
+        background-color: #fafafa;
         font-family: 'Noto Sans', sans-serif;
         font-size: 16px;
         font-weight: 300;
@@ -223,8 +223,8 @@
         }
         
         body.dark-mode #render{
-            background:#fff9e5;     /* keep the parchment colour */
-            color:#000;             /* always black text */
+            background:#fafafa;     /* keep the light gray paper colour */
+            color:#333;             /* keep the gray text */
     }   
 
         body.dark-mode .image-text {
@@ -243,7 +243,7 @@
 
   </style>
 </head>
-<body>
+<body class="dark-mode">
   <div id="toolbar">
     <!-- buttons… -->
     <button onclick="insertTag('bold')">Bold</button>
@@ -261,7 +261,7 @@
     <input type="file" id="file-input" accept=".txt" style="display:none">
     <button onclick="saveTextAsFile()">Save as .txt</button>
     <button onclick="saveRenderAsImage()">Save as Image</button>
-    <button onclick="toggleDarkMode()">Toggle Dark Mode</button>
+    <button onclick="toggleDarkMode()">Toggle Light Mode</button>
     <button onclick="toggleTemplatePicker()">Templates</button>
 
   </div>
