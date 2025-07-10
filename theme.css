@@ -1,10 +1,15 @@
+:root {
+  color-scheme: light dark;
+}
+
 /* General page styles */
 body {
     display: flex;
     flex-direction: row;
     margin: 0;
     font-family: 'Noto Sans', sans-serif;
-    background-color: #f5f5f5;
+    background-color: light-dark(#f5f5f5, #1e1e1e);
+    color: light-dark(#000, #ffffff);
     height: 100vh;
 }
 
@@ -24,8 +29,9 @@ body {
     flex-direction: column;
     gap: 10px;
     padding: 10px;
-    background-color: #eeeeee;
-    border-right: 1px solid #ccc;
+    background-color: light-dark(#eeeeee, #333333);
+    border-right: 1px solid light-dark(#ccc, #555555);
+    color: light-dark(#000, #ffffff);
     width: 150px;
     box-sizing: border-box;
 }
@@ -37,8 +43,8 @@ body {
     white-space: pre-wrap;
     overflow-wrap: break-word;
     font-family: monospace;
-    background-color: #ffffff;
-    border-right: 1px solid #ccc;
+    background-color: light-dark(#ffffff, #2d2d2d);
+    border-right: 1px solid light-dark(#ccc, #555555);
     height: 100vh;
     box-sizing: border-box;
     resize: none;
@@ -159,14 +165,14 @@ body {
 
 .image-text {
     font-size: 0.9em;
-    color: #333;
+    color: light-dark(#333, #ffffff);
 }
 
 /* Modern flat button styles */
 button {
-    background-color: #f5f5f5; /* Flat color */
-    border: 1px solid #ccc; /* Subtle border */
-    color: #333; /* Dark text for readability */
+    background-color: light-dark(#f5f5f5, #444444); /* Flat color */
+    border: 1px solid light-dark(#ccc, #555555); /* Subtle border */
+    color: light-dark(#333, #ffffff); /* Dark text for readability */
     font-size: 14px;
     font-weight: bold;
     border-radius: 5px;
@@ -177,55 +183,24 @@ button {
 }
 
 button:hover {
-    background-color: #e0e0e0; /* Slightly darker on hover */
-    color: #000; /* Darker text for hover */
+    background-color: light-dark(#e0e0e0, #555555); /* Slightly darker on hover */
+    color: light-dark(#000, #ffffff); /* Darker text for hover */
 }
 
-body.dark-mode button {
-    background-color: #444444; /* Flat dark color */
-    border: 1px solid #555555; /* Subtle dark border */
-    color: #ffffff; /* Light text for readability */
-}
-
-body.dark-mode button:hover {
-    background-color: #555555; /* Slightly lighter on hover */
-    color: #ffffff;
-}
-
-/* Adjustments for dark mode */
-body.dark-mode {
-    background-color: #1e1e1e;
-    color: #ffffff;
-}
-        
-body.dark-mode #toolbar {
-    background-color: #333333;
-    color: #ffffff;
-    border-right: 1px solid #555555;
-}
-        
-body.dark-mode #editor {
-    background-color: #2d2d2d;
-    color: #ffffff;
-    border-right: 1px solid #555555;
-}
-        
-body.dark-mode #render{
-    background:#fafafa; /* keep the light gray paper colour */
-    color:#333; /* keep the gray text */
-}   
-
-body.dark-mode .image-text {
-    color: #ffffff;
-}
-
-/* template picker in dark-mode */
-body.dark-mode #template-picker{
-    background:#000000; /* match the editor */
-    color:#fff;
-    border-color:#000000;
-}
-
-body.dark-mode #template-picker div:hover{
-    background:#000000; /* subtle hover highlight */
+#template-picker {
+    display: none;
+    position: absolute;
+    min-width: 320px;
+    max-height: 400px;
+    overflow: auto;
+    padding: 12px;
+    border: 2px solid rgb(74, 144, 226), ); /* rgb(85, 85, 85) */
+    /* from rgb(68, 68, 68) to rgb(30, 30, 30) */
+    background: linear-gradient(135deg, rgb(248, 249, 250) 0%, rgb(233, 236, 239) 100%);
+    border-radius: 8px;
+    box-shadow: rgba(0, 0, 0, 0.15) 0px 8px 24px;
+    z-index: 1001;
+    font-family: "Segoe UI", sans-serif;
+    font-size: 13px;
+    backdrop-filter: blur(10px); top: 10px; left: 160px;
 }

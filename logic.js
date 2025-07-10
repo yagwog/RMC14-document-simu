@@ -179,11 +179,6 @@ document.addEventListener('keydown', ev=>{
   }
 });
 
-// --- dark mode ---
-function toggleDarkMode() {
-  document.body.classList.toggle('dark-mode');
-}
-
 // ─── TEMPLATE PICKER ──────────────────────────────────────────
 let templateCache = null;
 
