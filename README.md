@@ -1,6 +1,8 @@
 **Webapp: https://yagwog.github.io/RMC14-document-simu/**
 
-Much love to the RMC14 community that helped me make this
+Made by Tunguso4ka and Simon
+
+Much love to the RMC14 community that helped us make this.
 
 I will eventually write a guide how to clone the repo, and set the template destination to another repo if you wish to use it for another ss14 servers paperwork
 
