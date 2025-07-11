@@ -194,13 +194,32 @@ button:hover {
     max-height: 400px;
     overflow: auto;
     padding: 12px;
-    border: 2px solid rgb(74, 144, 226), ); /* rgb(85, 85, 85) */
-    /* from rgb(68, 68, 68) to rgb(30, 30, 30) */
-    background: linear-gradient(135deg, rgb(248, 249, 250) 0%, rgb(233, 236, 239) 100%);
+    border: 2px solid light-dark(rgb(74, 144, 226), rgb(85, 85, 85));
+    background: linear-gradient(135deg, light-dark(rgb(248, 249, 250), rgb(68, 68, 68)) 0%, light-dark(rgb(233, 236, 239), rgb(30, 30, 30)) 100%);
     border-radius: 8px;
     box-shadow: rgba(0, 0, 0, 0.15) 0px 8px 24px;
     z-index: 1001;
     font-family: "Segoe UI", sans-serif;
     font-size: 13px;
     backdrop-filter: blur(10px); top: 10px; left: 160px;
+}
+
+.template-title {
+    font-weight:bold;
+    color: light-dark(#34495e, #B0C2D4);
+    font-size:14px;
+}
+
+.template-button {
+    cursor:pointer;
+    padding:4px 8px;
+    margin:2px 0;
+    border-radius:4px;
+    transition:all 0.2s;
+    background: light-dark(rgba(74,144,226,0.1), rgba(68, 68, 68, 0.1));
+    color: light-dark(#2c3e50, #CAD6E2);
+}
+
+.template-button:hover {
+    background: light-dark(rgba(74,144,226,0.2), rgba(68, 68, 68, 0.5));
 }
