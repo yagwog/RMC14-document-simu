@@ -179,11 +179,6 @@ document.addEventListener('keydown', ev=>{
   }
 });
 
-// --- dark mode ---
-function toggleDarkMode() {
-  document.body.classList.toggle('dark-mode');
-}
-
 // ─── TEMPLATE PICKER ──────────────────────────────────────────
 let templateCache = null;
 
@@ -251,16 +246,11 @@ function buildTemplateTree(files) {
   function render(node, indent='', level=0) {
     return Object.entries(node).map(([name,val])=>{
       if (typeof val === 'string') {
-        return `<div style="cursor:pointer;padding:4px 8px;margin:2px 0;
-                           border-radius:4px;transition:all 0.2s;
-                           background:rgba(74,144,226,0.1);color:#2c3e50;"
-                     onmouseover="this.style.background='rgba(74,144,226,0.2)'"
-                     onmouseout="this.style.background='rgba(74,144,226,0.1)'"
-                     onclick="loadTemplate('${val.replace(/'/g,"\\'")}')">
+        return `<div class="template-button" onclick="loadTemplate('${val.replace(/'/g,"\\'")}')">
                   ${indent}📄 <span style="font-weight:500">${name}</span></div>`;
       }
       return `<div style="margin:${level*2}px 0;padding:4px 0;">
-                <div style="font-weight:bold;color:#34495e;font-size:14px;">
+                <div class="template-title">
                   ${indent}📂 ${name}</div>
                 <div style="margin-left:16px;">${render(val, indent+'  ', level+1)}</div>
               </div>`;

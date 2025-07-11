@@ -4,246 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
   <title>SS14 Document Formatter</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <style>
-        /* General page styles */
-        body {
-            display: flex;
-            flex-direction: row;
-            margin: 0;
-            font-family: 'Noto Sans', sans-serif;
-            background-color: #f5f5f5;
-            height: 100vh;
-        }
-        
-.monospace {
-    font-family: 'Consolas', 'Monaco', 'Courier New', monospace !important;
-    font-size: 18px;
-    letter-spacing: 0;
-    white-space: pre;
-    word-wrap: normal;
-    display: inline;
-    line-height: 1.0;
-}
-        /* Toolbar styles */
-        #toolbar {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            padding: 10px;
-            background-color: #eeeeee;
-            border-right: 1px solid #ccc;
-            width: 150px;
-            box-sizing: border-box;
-        }
-        
-        /* Editor styles */
-        #editor {
-            flex: 6; /* Increased flex for more width */
-            padding: 15px;
-            white-space: pre-wrap;
-            overflow-wrap: break-word;
-            font-family: monospace;
-            background-color: #ffffff;
-            border-right: 1px solid #ccc;
-            height: 100vh;
-            box-sizing: border-box;
-            resize: none;
-        }
-        
-        /* Render container and wrapper styles */
-        #render-container {
-            flex: 3; /* Adjusted flex to balance space */
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 20px;
-            box-sizing: border-box;
-        }
-        
-        #render-wrapper {
-            display: inline-block;
-            margin-bottom: 20px;
-        }
-        
-        #render {
-        width: 520px;
-        min-height: 724px;
-        padding: 20px;
-        background-color: #fafafa;
-        font-family: 'Noto Sans', sans-serif;
-        font-size: 16px;
-        font-weight: 300;
-        white-space: pre-wrap;
-        word-wrap: break-word;
-        line-height: 1.35;
-        overflow-wrap: break-word;
-        box-sizing: border-box;
-        border-radius: 40px;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-        border: 1px solid #ddd;
-        color: #333;
-        font-variant-ligatures: none;
-        letter-spacing: 0;
-        text-rendering: geometricPrecision;
-        font-kerning: none;
-}
 
-        /* Force underscores to use monospace font to maintain width */
-        .underscore-normal {
-            font-family: 'Courier New', monospace !important;
-            font-style: normal !important;
-            display: inline;
-        }
+  <link rel="icon" type="image/png" href="icon.png">
+  <link rel="stylesheet" type="text/css" href="theme.css"/>
 
-
-
-            #color-picker {
-        position: absolute;
-        top: 100px; /* Adjust as needed */
-        left: 200px; /* Adjust as needed */
-        background-color: white;
-        border: 1px solid #ccc;
-        border-radius: 8px;
-        padding: 10px;
-        z-index: 1000;
-        display: none;
-        grid-template-columns: repeat(auto-fill, minmax(30px, 1fr)); /* Creates rows with 30px boxes */
-        gap: 5px;
-        width: 200px; /* Increase the width */
-        max-height: 300px; /* Adjust max height */
-        overflow-y: auto; /* Scrollable if needed */
-    }
-
-        .color-box {
-            width: 30px;
-            height: 30px;
-            cursor: pointer;
-            border: 1px solid #aaa;
-            border-radius: 5px; /* Rounded corners for a ss14 look */
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1); /* Subtle shadow */
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
-        .color-box:hover {
-            transform: scale(1.1); /* Enlarge slightly on hover */
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Stronger shadow on hover */
-        }
-        
-
-
-    /* Proper styling for HTML b and i elements */
-    #render b {
-        font-weight: 600;
-    }
-
-    #render i {
-        font-style: italic;
-    }
-
-    /* Handle bolditalic (nested b i tags) */
-    #render b i, #render i b {
-        font-weight: 600;
-        font-style: italic;
-    }
-
-    /* Headers should lose boldness when italic */
-    #render i span[style*="font-weight:bold"] {
-        font-weight: normal !important;
-        font-style: italic !important;
-    }
-
-
-
-        /* Image container now positioned below render */
-        .image-container {
-            width: 100%; /* Match render width */
-            max-width: 540px;
-            text-align: center;
-            margin-top: 20px; /* Add spacing */
-        }
-        
-        .image-container img {
-            max-width: 100%;
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            margin-bottom: 10px;
-        }
-        
-        .image-text {
-            font-size: 0.9em;
-            color: #333;
-        }
-        
-        /* Modern flat button styles */
-        button {
-            background-color: #f5f5f5; /* Flat color */
-            border: 1px solid #ccc; /* Subtle border */
-            color: #333; /* Dark text for readability */
-            font-size: 14px;
-            font-weight: bold;
-            border-radius: 5px;
-            padding: 10px 15px;
-            cursor: pointer;
-            transition: all 0.2s ease-in-out;
-            box-shadow: none; /* Flat, no shadow */
-        }
-        
-        button:hover {
-            background-color: #e0e0e0; /* Slightly darker on hover */
-            color: #000; /* Darker text for hover */
-        }
-        
-        body.dark-mode button {
-            background-color: #444444; /* Flat dark color */
-            border: 1px solid #555555; /* Subtle dark border */
-            color: #ffffff; /* Light text for readability */
-        }
-        
-        body.dark-mode button:hover {
-            background-color: #555555; /* Slightly lighter on hover */
-            color: #ffffff;
-        }
-        
-        /* Adjustments for dark mode */
-        body.dark-mode {
-            background-color: #1e1e1e;
-            color: #ffffff;
-        }
-        
-        body.dark-mode #toolbar {
-            background-color: #333333;
-            color: #ffffff;
-            border-right: 1px solid #555555;
-        }
-        
-        body.dark-mode #editor {
-            background-color: #2d2d2d;
-            color: #ffffff;
-            border-right: 1px solid #555555;
-        }
-        
-        body.dark-mode #render{
-            background:#fafafa;     /* keep the light gray paper colour */
-            color:#333;             /* keep the gray text */
-    }   
-
-        body.dark-mode .image-text {
-            color: #ffffff;
-        }
-
-            /* template picker in dark-mode */
-        body.dark-mode #template-picker{
-            background:#000000;        /* match the editor */
-            color:#fff;
-            border-color:#000000;
-        }
-        body.dark-mode #template-picker div:hover{
-            background:#000000;           /* subtle hover highlight */
-        }
-
-  </style>
+  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
-<body class="dark-mode">
+<body>
   <div id="toolbar">
     <!-- buttons… -->
     <button onclick="insertTag('bold')">Bold</button>
@@ -261,7 +28,6 @@
     <input type="file" id="file-input" accept=".txt" style="display:none">
     <button onclick="saveTextAsFile()">Save as .txt</button>
     <button onclick="saveRenderAsImage()">Save as Image</button>
-    <button onclick="toggleDarkMode()">Toggle Light Mode</button>
     <button onclick="toggleTemplatePicker()">Templates</button>
 
   </div>
@@ -292,15 +58,8 @@
     </div>
 
   <div id="color-picker" style="display:none;position:absolute;grid-template-columns:repeat(auto-fill,30px);gap:5px;"></div>
-  <div id="template-picker"
-     style="display:none;position:absolute;
-            min-width:320px;max-height:400px;overflow:auto;
-            padding:12px;border:2px solid #4a90e2;
-            background:linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-            border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.15);
-            z-index:1001;font-family:'Segoe UI',sans-serif;font-size:13px;
-            backdrop-filter:blur(10px)"></div>
+  <div id="template-picker"></div>
 
-  <script src="logic.js"></script>
+  <script type="text/javascript" src="logic.js"></script>
 </body>
 </html>

@@ -1,0 +1,225 @@
+:root {
+  color-scheme: light dark;
+}
+
+/* General page styles */
+body {
+    display: flex;
+    flex-direction: row;
+    margin: 0;
+    font-family: 'Noto Sans', sans-serif;
+    background-color: light-dark(#f5f5f5, #1e1e1e);
+    color: light-dark(#000, #ffffff);
+    height: 100vh;
+}
+
+.monospace {
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace !important;
+    font-size: 18px;
+    letter-spacing: 0;
+    white-space: pre;
+    word-wrap: normal;
+    display: inline;
+    line-height: 1.0;
+}
+
+/* Toolbar styles */
+#toolbar {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 10px;
+    background-color: light-dark(#eeeeee, #333333);
+    border-right: 1px solid light-dark(#ccc, #555555);
+    color: light-dark(#000, #ffffff);
+    width: 150px;
+    box-sizing: border-box;
+}
+
+/* Editor styles */
+#editor {
+    flex: 6; /* Increased flex for more width */
+    padding: 15px;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+    font-family: monospace;
+    background-color: light-dark(#ffffff, #2d2d2d);
+    border-right: 1px solid light-dark(#ccc, #555555);
+    height: 100vh;
+    box-sizing: border-box;
+    resize: none;
+}
+
+/* Render container and wrapper styles */
+#render-container {
+    flex: 3; /* Adjusted flex to balance space */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+#render-wrapper {
+    display: inline-block;
+    margin-bottom: 20px;
+}
+
+#render {
+    width: 520px;
+    min-height: 724px;
+    padding: 20px;
+    background-color: #fafafa;
+    font-family: 'Noto Sans', sans-serif;
+    font-size: 16px;
+    font-weight: 300;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    line-height: 1.35;
+    overflow-wrap: break-word;
+    box-sizing: border-box;
+    border-radius: 40px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    border: 1px solid #ddd;
+    color: #333;
+    font-variant-ligatures: none;
+    letter-spacing: 0;
+    text-rendering: geometricPrecision;
+    font-kerning: none;
+}
+
+/* Force underscores to use monospace font to maintain width */
+.underscore-normal {
+    font-family: 'Courier New', monospace !important;
+    font-style: normal !important;
+    display: inline;
+}
+
+#color-picker {
+    position: absolute;
+    top: 100px; /* Adjust as needed */
+    left: 200px; /* Adjust as needed */
+    background-color: white;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    padding: 10px;
+    z-index: 1000;
+    display: none;
+    grid-template-columns: repeat(auto-fill, minmax(30px, 1fr)); /* Creates rows with 30px boxes */
+    gap: 5px;
+    width: 200px; /* Increase the width */
+    max-height: 300px; /* Adjust max height */
+    overflow-y: auto; /* Scrollable if needed */
+}
+
+.color-box {
+    width: 30px;
+    height: 30px;
+    cursor: pointer;
+    border: 1px solid #aaa;
+    border-radius: 5px; /* Rounded corners for a ss14 look */
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.color-box:hover {
+    transform: scale(1.1); /* Enlarge slightly on hover */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Stronger shadow on hover */
+}
+
+/* Proper styling for HTML b and i elements */
+#render b {
+    font-weight: 600;
+}
+
+#render i {
+    font-style: italic;
+}
+
+/* Handle bolditalic (nested b i tags) */
+#render b i, #render i b {
+    font-weight: 600;
+    font-style: italic;
+}
+
+/* Headers should lose boldness when italic */
+#render i span[style*="font-weight:bold"] {
+    font-weight: normal !important;
+    font-style: italic !important;
+}
+
+/* Image container now positioned below render */
+.image-container {
+    width: 100%; /* Match render width */
+    max-width: 540px;
+    text-align: center;
+    margin-top: 20px; /* Add spacing */
+}
+
+.image-container img {
+    max-width: 100%;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    margin-bottom: 10px;
+}
+
+.image-text {
+    font-size: 0.9em;
+    color: light-dark(#333, #ffffff);
+}
+
+/* Modern flat button styles */
+button {
+    background-color: light-dark(#f5f5f5, #444444); /* Flat color */
+    border: 1px solid light-dark(#ccc, #555555); /* Subtle border */
+    color: light-dark(#333, #ffffff); /* Dark text for readability */
+    font-size: 14px;
+    font-weight: bold;
+    border-radius: 5px;
+    padding: 10px 15px;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    box-shadow: none; /* Flat, no shadow */
+}
+
+button:hover {
+    background-color: light-dark(#e0e0e0, #555555); /* Slightly darker on hover */
+    color: light-dark(#000, #ffffff); /* Darker text for hover */
+}
+
+#template-picker {
+    display: none;
+    position: absolute;
+    min-width: 320px;
+    max-height: 400px;
+    overflow: auto;
+    padding: 12px;
+    border: 2px solid light-dark(rgb(74, 144, 226), rgb(85, 85, 85));
+    background: linear-gradient(135deg, light-dark(rgb(248, 249, 250), rgb(68, 68, 68)) 0%, light-dark(rgb(233, 236, 239), rgb(30, 30, 30)) 100%);
+    border-radius: 8px;
+    box-shadow: rgba(0, 0, 0, 0.15) 0px 8px 24px;
+    z-index: 1001;
+    font-family: "Segoe UI", sans-serif;
+    font-size: 13px;
+    backdrop-filter: blur(10px); top: 10px; left: 160px;
+}
+
+.template-title {
+    font-weight:bold;
+    color: light-dark(#34495e, #B0C2D4);
+    font-size:14px;
+}
+
+.template-button {
+    cursor:pointer;
+    padding:4px 8px;
+    margin:2px 0;
+    border-radius:4px;
+    transition:all 0.2s;
+    background: light-dark(rgba(74,144,226,0.1), rgba(68, 68, 68, 0.1));
+    color: light-dark(#2c3e50, #CAD6E2);
+}
+
+.template-button:hover {
+    background: light-dark(rgba(74,144,226,0.2), rgba(68, 68, 68, 0.5));
+}
