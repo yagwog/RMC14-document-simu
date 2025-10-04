@@ -29,11 +29,15 @@ jobs:
             echo "changed=true" >> $GITHUB_OUTPUT
           fi
           
+      - name: Generate template list
+        run: |
+          node update-templates.js
+          
       - name: Commit and push if changed
         if: steps.changes.outputs.changed == 'true'
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add templates-upstream/
+          git add templates-upstream/ template-list.json
           git commit -m "Auto-sync templates from upstream"
           git push

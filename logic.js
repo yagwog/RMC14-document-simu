@@ -205,49 +205,25 @@ async function toggleTemplatePicker() {
   picker.style.left = `${tb.right + 10}px`;
 }
 
-// Fetch templates dynamically from GitHub API
+// Fetch templates from local submodule
 async function fetchTemplates() {
   const baseUrl = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '') + '/templates-upstream/Main/RMC14/';
   
   try {
-    const apiUrl = 'https://api.github.com/repos/crazy1112345/RMC14Paperwork/contents/Main/RMC14';
-    const response = await fetch(apiUrl);
-    const structure = await response.json();
+    const response = await fetch('./template-list.json');
+    const templateList = await response.json();
     
-    return await buildTemplatesFromAPI(structure, baseUrl);
+    return templateList.map(template => ({
+      path: template,
+      url: `${baseUrl}${encodeURIComponent(template)}`
+    }));
   } catch (error) {
-    console.warn('GitHub API failed, using fallback');
+    console.warn('Could not load template list');
     return [];
   }
 }
 
-async function buildTemplatesFromAPI(items, baseUrl, basePath = '') {
-  const templates = [];
-  
-  for (const item of items) {
-    if (item.name.startsWith('.') || item.name === 'Before Tags') continue;
-    
-    const currentPath = basePath ? `${basePath}/${item.name}` : item.name;
-    
-    if (item.type === 'dir') {
-      try {
-        const subResponse = await fetch(item.url);
-        const subItems = await subResponse.json();
-        const subTemplates = await buildTemplatesFromAPI(subItems, baseUrl, currentPath);
-        templates.push(...subTemplates);
-      } catch (e) {
-        console.warn(`Failed to fetch ${item.name}:`, e);
-      }
-    } else if (item.name.endsWith('.txt')) {
-      templates.push({
-        path: currentPath,
-        url: `${baseUrl}${encodeURIComponent(currentPath.replace(/\//g, '/'))}`
-      });
-    }
-  }
-  
-  return templates;
-}
+
 
 function buildTemplateTree(files) {
   const root = {};
