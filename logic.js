@@ -211,24 +211,50 @@ async function fetchTemplates() {
   
   // Template structure - update this when new categories are added
   const structure = {
-    'Command': ['C-402 Regional or High Command Correspondence.txt', 'C-486 Squad Comp Report.txt', 'C-501 General Deployment Request.txt', 'C-594 Enlistment Form.txt', 'C-619 Recomendation for Award.txt', 'C-999 Nuclear Authorization Request.txt'],
-    'Medical': ['M-106 Certification of Death.txt', 'M-133 Morgue Autopsy Report.txt', 'M-210 Prescription Slip.txt', 'M-212 Medical Bay Preparedness.txt', 'M-389 Req form.txt', 'M-488 Psych Eval.txt', 'M-489 Declaration of Insanity.txt', 'M-532 Deployment Request.txt', 'M-62 GC Waiver.txt', 'M-BT012 DEAD Casevac Bag Tag.txt', 'M-BT013 LARVA Casevac Bag Tag.txt'],
-    'MP': ['P-304 Armory Request form.txt', 'P-401 Incident Report.txt', 'P-402 Provost correspondence.txt', 'P-403 Arrest Report.txt', 'P-404 Witness Statement.txt', 'P-409 Arrest Record.txt', 'P-415 Record of Misuse of Authority.txt', 'P-508 Search Warrant.txt', 'P-509 Arrest Warrant.txt', 'P-512 Deployment Request.txt', 'P-605 Criminal Appeal.txt', 'Execution Order.txt'],
+    'Aux (Intel + Flight staff)': ['AX-108 Auxiliary Support Pre-operation Checklist.txt', 'X-F412 Dropship Flight Report Form.txt', 'X-F413 Gunship Flight Report Form.txt', 'X-F45 Preflight Checklist.txt', 'X-F49 Postflight Audit.txt', 'X-I501 Intel Personnel Roster.txt', 'X-I502 Intel Fireteam Roster.txt', 'X-I55 Intel Transfer Request.txt', 'X-I64 Chain of Custody.txt'],
+    'Civilian': ['Calypso Cultural Magazine Letter.txt', 'Generic Newsletter.txt', 'Omega Technical Manuals Letter.txt', 'Ordinal Conflict Reporters Letter.txt', 'Outer Rim Network.txt', 'Sidero Biological Studies Foundation Letter.txt', 'Sol News Network.txt', 'United Nations News Network Letter.txt'],
+    'Command': ['C-402 Regional or High Command Correspondence.txt', 'C-486 Squad Comp Report.txt', 'C-501 General Deployment Request.txt', 'C-594 Enlistment Form.txt', 'C-619 Recomendation for Award.txt', 'C-976 Squad Casualty Report.txt', 'C-999 Nuclear Authorization Request.txt'],
     'Engineering': ['E-389 Engineering Supply Request.txt', 'E-436 Work-order.txt', 'E-465 OB Usage.txt', 'E-482 Shipside Modification Request.txt', 'E-501 Deployment Request.txt'],
-    'Req': ['R-301 Supply Drop Manifest.txt', 'R-304 General Armory Request.txt', 'R-306 Suppy Drop Request.txt', 'R-315 Expenditure Report.txt', 'R-389 Requisitions Request.txt', 'R-M39 Medical Supply Request.txt'],
-    'Squads': ['S-404 After Action Review.txt', 'S-A5 Alpha Personnel Roster.txt', 'S-B5 Bravo Personnel Roster.txt', 'S-C5 Charlie Personnel Roster.txt', 'S-D5 Delta Personnel Roster.txt', 'S-E1 Echo Transfer Request.txt', 'S-M59 Marine Service Record.txt', 'Liberty Pass.txt'],
-    'Weston-Yamada': ['CL-000 Generic Fax Template.txt', 'CL-402 We-Ya correspondence.txt', 'CL-433 Colony Incident Report.txt', 'CL-435 Liaison Operations Report.txt', 'CL-524 Liasion Deployment Request.txt', 'CL-529 Special Assignment (we-ya marine).txt', 'CL-532 Correspondent Agreement.txt', 'CL-563 Last Will and Testament.txt', 'CL-563A Compensation Stipulations.txt', 'CL-579 PMC Request Form.txt', 'CL-602 General NDA.txt', 'CL-604 Colonist NDA.txt', 'CL-609 Feedback Form.txt', 'CL-654 Asset Protection Agreement.txt', 'CL-658 Intel Review Request.txt', 'CL-679 Cease and Desist.txt', 'CL-694 Claims Waiver.txt']
+    'Fax Responder': {
+      'CLF': ['CLF Fax Template.txt'],
+      'CMB': ['CMB Fax Template.txt'],
+      'Free Press': ['Free Press Fax Template.txt'],
+      'Provost Marshals Office': ['Provost Regional Marshal Office Transmission.txt'],
+      'UNMC Regional Command': ['UNMC RC Transmission (Base Template).txt'],
+      'We-Ya': ['Special Services Regional Management Corrospondence.txt']
+    },
+    'General and Misc': ['Colonies of Neroid (2 Pages).txt', 'G-400 Almayer Mess Health Inspection.txt', 'G-568 Chaplain Ordination Form.txt', 'G-635 Stella Accords.txt', 'Mess Daily Menu.txt'],
+    'Jokes': ['CL-398 Pizza Order Form.txt', 'MOMCASFD-No.33 Gruel.txt', 'Pen Borrowing Form.txt', 'Pizza Galaxy Delivery Receipt.txt'],
+    'Medical': ['M-106 Certification of Death.txt', 'M-133 Morgue Autopsy Report.txt', 'M-205 SSD report.txt', 'M-210 Prescription Slip.txt', 'M-212 Medical Bay Preparedness.txt', 'M-389 Req form.txt', 'M-488 Psych Eval.txt', 'M-489 Declaration of Insanity.txt', 'M-532 Deployment Request.txt', 'M-605 SSD Policy.txt', 'M-62 GC Waiver.txt', 'M-BT012 DEAD Casevac Bag Tag.txt', 'M-BT013 LARVA Casevac Bag Tag.txt'],
+    'MP': ['Execution Order.txt', 'P-304 Armory Request form.txt', 'P-399 Gear Retrival Form.txt', 'P-401 Incident Report.txt', 'P-402 Provost correspondence.txt', 'P-402 Witness Statement.txt', 'P-403 Arrest Report.txt', 'P-415 Record of Misuse of Authority.txt', 'P-508 Search Warrant.txt', 'P-509 Arrest Warrant.txt', 'P-512 Deployment Request.txt', 'P-605 Criminal Appeal.txt'],
+    'Req': ['R-301 Supply Drop Manifest.txt', 'R-302 Standard Supply Policy.txt', 'R-304 General Armory Request.txt', 'R-306 Suppy Drop Request.txt', 'R-315 Expenditure Report.txt', 'R-389 Requisitions Request.txt', 'R-612 Mortar Operator waiver.txt', 'R-M39 Medical Supply Request.txt'],
+    'Squads': ['S-404 After Action Review.txt', 'S-A5 Alpha Personnel Roster.txt', 'S-B5 Bravo Personnel Roster.txt', 'S-C5 Charlie Personnel Roster.txt', 'S-D5 Delta Personnel Roster.txt', 'S-E1 Echo Transfer Request.txt'],
+    'Weston-Yamada': ['CL-000 Generic Fax Template.txt', 'CL-402 We-Ya correspondence.txt', 'CL-433 Colony Incident Report.txt', 'CL-435 Liaison Operations Report.txt', 'CL-524 Liasion Deployment Request.txt', 'CL-529 Special Assignment (we-ya marine).txt', 'CL-532 Correspondent Agreement.txt', 'CL-563 Last Will and Testament.txt', 'CL-563A Compensation Stipulations.txt', 'CL-579 PMC Request Form.txt', 'CL-602 General NDA.txt', 'CL-604 Colonist NDA.txt', 'CL-609 Feedback Form.txt', 'CL-654 Asset Protection Agreement.txt', 'CL-658 Intel Review Request.txt', 'CL-679 Cease and Desist.txt', 'CL-694 Claims Waiver.txt', 'Headers-CenterChunk-WeYaDepartments.txt', 'Headers-Thin-WeYaDepartments.txt']
   };
   
   let templates = [];
-  for (const [folder, files] of Object.entries(structure)) {
-    for (const file of files) {
-      templates.push({
-        path: `${folder}/${file}`,
-        url: `${baseUrl}${folder}/${encodeURIComponent(file)}`
-      });
+  
+  function processFolder(folderName, content, basePath = '') {
+    const currentPath = basePath ? `${basePath}/${folderName}` : folderName;
+    
+    if (Array.isArray(content)) {
+      for (const file of content) {
+        templates.push({
+          path: `${currentPath}/${file}`,
+          url: `${baseUrl}${encodeURIComponent(currentPath)}/${encodeURIComponent(file)}`
+        });
+      }
+    } else {
+      for (const [subFolder, subContent] of Object.entries(content)) {
+        processFolder(subFolder, subContent, currentPath);
+      }
     }
   }
+  
+  for (const [folder, content] of Object.entries(structure)) {
+    processFolder(folder, content);
+  }
+  
   return templates;
 }
 
