@@ -207,7 +207,7 @@ async function toggleTemplatePicker() {
 
 // Fetch templates from local submodule via GitHub Pages
 async function fetchTemplates() {
-  const baseUrl = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '') + '/templates-upstream/Main/Updated%20RMC14/';
+  const baseUrl = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '') + '/templates-upstream/Main/RMC14/';
   
   // Template structure - update this when new categories are added
   const structure = {
