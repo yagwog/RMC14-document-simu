@@ -331,7 +331,7 @@ function updateRender() {
                     case 'head':
                         const headerSize = Math.ceil(SS14_DEFAULT_SIZE * 2 / Math.sqrt(parseInt(param)));
                         const headerWeight = param == 1 ? 'bold' : param == 2 ? '600' : '500';
-                        output += `<span style="font-size:${headerSize}px; line-height:0; font-weight:${headerWeight}; display:inline-block; vertical-align:middle;">`;
+                        output += `<span style="font-size:${headerSize}px; line-height:0.8; font-weight:${headerWeight}; display:inline; vertical-align:top;">`;
                         stack.push({ tag: 'head', param });
                         break;
                     default: break;
@@ -370,7 +370,7 @@ function updateRender() {
             case 'head':        
                 const reopenSize = Math.ceil(SS14_DEFAULT_SIZE * 2 / Math.sqrt(parseInt(reopened.param || 1)));
                 const reopenWeight = reopened.param == 1 ? 'bold' : reopened.param == 2 ? '600' : '500';
-                output += `<span style="font-size:${reopenSize}px; line-height:0; font-weight:${reopenWeight}; display:inline-block; vertical-align:middle;">`;
+                output += `<span style="font-size:${reopenSize}px; line-height:0.8; font-weight:${reopenWeight}; display:inline; vertical-align:top;">`;
                 break;
             case 'bolditalic':  output += '<b><i>';                   break;
             case 'bullet':      output += '• ';                   break;
