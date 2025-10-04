@@ -388,6 +388,8 @@ function updateRender() {
 
         } else {
             output += tok
+                .replace(/\\\[/g, '[')
+                .replace(/\\\]/g, ']')
                 .replace(/&/g, '&amp;')
                 .replace(/</g, '&lt;')
                 .replace(/>/g, '&gt;')
