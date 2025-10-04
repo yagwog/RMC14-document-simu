@@ -205,30 +205,47 @@ async function toggleTemplatePicker() {
   picker.style.left = `${tb.right + 10}px`;
 }
 
-// Fetch templates from local submodule via GitHub Pages
+// Fetch templates dynamically from GitHub API
 async function fetchTemplates() {
   const baseUrl = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '') + '/templates-upstream/Main/RMC14/';
   
-  // Template structure - update this when new categories are added
-  const structure = {
-    'Command': ['C-402 Regional or High Command Correspondence.txt', 'C-486 Squad Comp Report.txt', 'C-501 General Deployment Request.txt', 'C-594 Enlistment Form.txt', 'C-619 Recomendation for Award.txt', 'C-999 Nuclear Authorization Request.txt'],
-    'Medical': ['M-106 Certification of Death.txt', 'M-133 Morgue Autopsy Report.txt', 'M-210 Prescription Slip.txt', 'M-212 Medical Bay Preparedness.txt', 'M-389 Req form.txt', 'M-488 Psych Eval.txt', 'M-489 Declaration of Insanity.txt', 'M-532 Deployment Request.txt', 'M-62 GC Waiver.txt', 'M-BT012 DEAD Casevac Bag Tag.txt', 'M-BT013 LARVA Casevac Bag Tag.txt'],
-    'MP': ['P-304 Armory Request form.txt', 'P-401 Incident Report.txt', 'P-402 Provost correspondence.txt', 'P-403 Arrest Report.txt', 'P-404 Witness Statement.txt', 'P-409 Arrest Record.txt', 'P-415 Record of Misuse of Authority.txt', 'P-508 Search Warrant.txt', 'P-509 Arrest Warrant.txt', 'P-512 Deployment Request.txt', 'P-605 Criminal Appeal.txt', 'Execution Order.txt'],
-    'Engineering': ['E-389 Engineering Supply Request.txt', 'E-436 Work-order.txt', 'E-465 OB Usage.txt', 'E-482 Shipside Modification Request.txt', 'E-501 Deployment Request.txt'],
-    'Req': ['R-301 Supply Drop Manifest.txt', 'R-304 General Armory Request.txt', 'R-306 Suppy Drop Request.txt', 'R-315 Expenditure Report.txt', 'R-389 Requisitions Request.txt', 'R-M39 Medical Supply Request.txt'],
-    'Squads': ['S-404 After Action Review.txt', 'S-A5 Alpha Personnel Roster.txt', 'S-B5 Bravo Personnel Roster.txt', 'S-C5 Charlie Personnel Roster.txt', 'S-D5 Delta Personnel Roster.txt', 'S-E1 Echo Transfer Request.txt', 'S-M59 Marine Service Record.txt', 'Liberty Pass.txt'],
-    'Weston-Yamada': ['CL-000 Generic Fax Template.txt', 'CL-402 We-Ya correspondence.txt', 'CL-433 Colony Incident Report.txt', 'CL-435 Liaison Operations Report.txt', 'CL-524 Liasion Deployment Request.txt', 'CL-529 Special Assignment (we-ya marine).txt', 'CL-532 Correspondent Agreement.txt', 'CL-563 Last Will and Testament.txt', 'CL-563A Compensation Stipulations.txt', 'CL-579 PMC Request Form.txt', 'CL-602 General NDA.txt', 'CL-604 Colonist NDA.txt', 'CL-609 Feedback Form.txt', 'CL-654 Asset Protection Agreement.txt', 'CL-658 Intel Review Request.txt', 'CL-679 Cease and Desist.txt', 'CL-694 Claims Waiver.txt']
-  };
+  try {
+    const apiUrl = 'https://api.github.com/repos/crazy1112345/RMC14Paperwork/contents/Main/RMC14';
+    const response = await fetch(apiUrl);
+    const structure = await response.json();
+    
+    return await buildTemplatesFromAPI(structure, baseUrl);
+  } catch (error) {
+    console.warn('GitHub API failed, using fallback');
+    return [];
+  }
+}
+
+async function buildTemplatesFromAPI(items, baseUrl, basePath = '') {
+  const templates = [];
   
-  let templates = [];
-  for (const [folder, files] of Object.entries(structure)) {
-    for (const file of files) {
+  for (const item of items) {
+    if (item.name.startsWith('.') || item.name === 'Before Tags') continue;
+    
+    const currentPath = basePath ? `${basePath}/${item.name}` : item.name;
+    
+    if (item.type === 'dir') {
+      try {
+        const subResponse = await fetch(item.url);
+        const subItems = await subResponse.json();
+        const subTemplates = await buildTemplatesFromAPI(subItems, baseUrl, currentPath);
+        templates.push(...subTemplates);
+      } catch (e) {
+        console.warn(`Failed to fetch ${item.name}:`, e);
+      }
+    } else if (item.name.endsWith('.txt')) {
       templates.push({
-        path: `${folder}/${file}`,
-        url: `${baseUrl}${folder}/${encodeURIComponent(file)}`
+        path: currentPath,
+        url: `${baseUrl}${encodeURIComponent(currentPath.replace(/\//g, '/'))}`
       });
     }
   }
+  
   return templates;
 }
 

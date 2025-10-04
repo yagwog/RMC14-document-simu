@@ -1,37 +1,45 @@
-// Manual template structure updater
-
+// Script to generate template structure from submodule
 const fs = require('fs');
 const path = require('path');
 
-function scanDirectory(dir, basePath = '') {
-  const structure = {};
-  const items = fs.readdirSync(dir);
+function scanDirectory(dir, baseDir = '') {
+  const items = fs.readdirSync(dir, { withFileTypes: true });
+  const result = {};
   
   for (const item of items) {
-    const fullPath = path.join(dir, item);
-    const stat = fs.statSync(fullPath);
+    if (item.name.startsWith('.') || item.name === 'Before Tags') continue;
     
-    if (stat.isDirectory()) {
-      const subStructure = scanDirectory(fullPath, path.join(basePath, item));
-      if (Object.keys(subStructure).length > 0) {
-        Object.assign(structure, subStructure);
+    const fullPath = path.join(dir, item.name);
+    
+    if (item.isDirectory()) {
+      const subResult = scanDirectory(fullPath, path.join(baseDir, item.name));
+      if (Object.keys(subResult).length > 0) {
+        result[item.name] = subResult;
       }
-    } else if (item.endsWith('.txt')) {
-      const folder = path.basename(dir);
-      if (!structure[folder]) structure[folder] = [];
-      structure[folder].push(item);
+    } else if (item.name.endsWith('.txt')) {
+      if (!result._files) result._files = [];
+      result._files.push(item.name);
     }
   }
   
-  return structure;
+  // Convert _files arrays to direct arrays for leaf directories
+  if (result._files && Object.keys(result).length === 1) {
+    return result._files;
+  }
+  
+  return result;
 }
 
-const templatesDir = './templates-upstream/Main/Updated RMC14';
-if (fs.existsSync(templatesDir)) {
-  const structure = scanDirectory(templatesDir);
-  console.log('Template structure:');
-  console.log(JSON.stringify(structure, null, 2));
-  console.log('\nCopy this into the fetchTemplates() function in logic.js');
+const templateDir = path.join(__dirname, 'templates-upstream', 'Main', 'RMC14');
+if (fs.existsSync(templateDir)) {
+  const structure = scanDirectory(templateDir);
+  
+  // Generate the structure object for logic.js
+  const output = `// Auto-generated template structure
+const TEMPLATE_STRUCTURE = ${JSON.stringify(structure, null, 2)};`;
+  
+  fs.writeFileSync(path.join(__dirname, 'template-structure.js'), output);
+  console.log('Template structure updated!');
 } else {
-  console.log('Templates directory not found. Make sure submodule is initialized.');
+  console.log('Template directory not found. Run git submodule update --init first.');
 }
