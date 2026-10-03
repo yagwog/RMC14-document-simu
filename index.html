@@ -7,59 +7,102 @@
 
   <link rel="icon" type="image/png" href="icon.png">
   <link rel="stylesheet" type="text/css" href="theme.css"/>
-
-  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
-  <div id="toolbar">
-    <!-- buttons… -->
-    <button onclick="insertTag('bold')">Bold</button>
-    <button onclick="insertTag('italic')">Italic</button>
-    <button onclick="insertTag('bolditalic')">Bold Italic</button>
-    <button onclick="insertTag('mono')">Monospace</button>
-    <button onclick="insertTag('head=1')">Header 1</button>
-    <button onclick="insertTag('head=2')">Header 2</button>
-    <button onclick="insertTag('head=3')">Header 3</button>
-    <button onclick="toggleColorPicker()">Color Picker</button>
-    <button onclick="insertHexColor()">Hex Color</button>
-    <button onclick="insertTag('bullet')">Bullet</button>
-    <button onclick="centerText()">Center Text</button>
-    <button onclick="document.getElementById('file-input').click()">Import .txt</button>
-    <input type="file" id="file-input" accept=".txt" style="display:none">
-    <button onclick="saveTextAsFile()">Save as .txt</button>
-    <button onclick="saveRenderAsImage()">Save as Image</button>
-    <button onclick="toggleTemplatePicker()">Templates</button>
-
-  </div>
-
-    <!-- Editor for user input -->
-    <textarea id="editor" placeholder="Type here and watch with amazement as it's rendered in the render area..."></textarea>
-
-    <!-- Render area -->
-    <div id="render-container">
-        <div id="render-wrapper">
-            <div id="render"></div>
-        </div>
-
-        <!-- Content below render -->
-        <div class="image-container">
-            <p class="image-text">v7 woohoo.</p>
-            <img src="https://files.catbox.moe/gws2xt.png" alt="Placeholder Image">
-            <p class="image-text">Made with love - Simon / Big Dave / Fred Blehurst & Tunguso4ka <br>Special thanks to the the RMC14 community, support their project, the game is fun too!.</p>
-            <p class="image-text">#v7 changes: Nesting tags "hopefully" fixed completely</p>
-            <p class="image-text"> Added the option to use templates from the papercord git for rmc14 (not affilated, nor is this webapp)
-            <p class="image-text"> Bal'd' mono a bit more, hopefully it's a bit more representative of in game</p>
-            <p class="image-text"> proper bodged the way headers work because HTML doesn't like same line headers</p>
-            <p class="image-text"> Re-wrote most of the code since it was ass</p>
-            <p class="image-text">________________________________________</p>
-            <p class="image-text">Todo: Work on monospacing a bit more, add small tags when, general work on getting closer to 1-2-1</p>
-            <p class="image-text">Please give me feedback as well as tips.</p>
-        </div>
+  <aside id="sidebar">
+    <div class="brand">
+      <img src="icon.png" alt="">
+      <div>
+        <strong>SS14 Paperwork</strong>
+        <span>RMC14 document simulator</span>
+      </div>
     </div>
 
-  <div id="color-picker" style="display:none;position:absolute;grid-template-columns:repeat(auto-fill,30px);gap:5px;"></div>
-  <div id="template-picker"></div>
+    <section class="panel tools" aria-label="Tools">
+      <h2>Format</h2>
+      <div class="tool-grid">
+        <button data-tag="bold" title="Bold (Ctrl+B)"><b>B</b></button>
+        <button data-tag="italic" title="Italic (Ctrl+I)"><i>I</i></button>
+        <button data-tag="bolditalic" title="Bold italic"><b><i>BI</i></b></button>
+        <button data-tag="mono" title="Monospace" class="mono-label">Mono</button>
+        <button data-tag="head=1" title="Header 1">H1</button>
+        <button data-tag="head=2" title="Header 2">H2</button>
+        <button data-tag="head=3" title="Header 3">H3</button>
+        <button data-action="bullet" title="Bullet [bullet/]">•</button>
+        <button id="color-btn" data-action="color" title="Colour"><span class="swatch-icon"></span></button>
+        <button data-action="center" title="Centre the selected lines, using the game's real character widths" class="wide">Centre</button>
+      </div>
 
-  <script type="text/javascript" src="logic.js"></script>
+      <h2>Fields</h2>
+      <div class="tool-grid">
+        <button data-insert="[form]" title="Insert a Fill box [form]" class="wide">Fill box</button>
+        <button data-insert="[check]" title="Insert a checkbox [check]">☐</button>
+        <button data-insert="[signature]" title="Insert a signature box [signature]" class="wide">Sign box</button>
+        <button data-action="finalize" title="Do what stamping does in game: remove unfilled Fill and Sign boxes, and turn unticked checkboxes into ☐" class="full">Finalise (as if stamped)</button>
+      </div>
+      <button id="identity-btn" class="identity" title="Who you sign as when you press Sign">
+        <span>Signing as</span>
+        <strong id="identity-label">Not set</strong>
+      </button>
+
+      <h2>File</h2>
+      <div class="tool-grid">
+        <button data-action="import" class="wide" title="Open a .txt file">Import</button>
+        <button data-action="save-text" class="wide" title="Download the text as .txt">Save .txt</button>
+        <button data-action="save-image" class="full" title="Download the rendered paper as a PNG">Save as image</button>
+      </div>
+      <input type="file" id="file-input" accept=".txt,text/plain" hidden>
+    </section>
+
+    <section class="panel templates" aria-label="Templates">
+      <h2>Templates <span id="tpl-count"></span></h2>
+      <input type="search" id="tpl-search" placeholder="Search templates" autocomplete="off" spellcheck="false">
+      <div id="template-tree" role="tree" aria-busy="true">Loading templates…</div>
+    </section>
+  </aside>
+
+  <!-- Editor for user input -->
+  <textarea id="editor" spellcheck="false" placeholder="Type here and watch with amazement as it's rendered in the render area..."></textarea>
+
+  <!-- Render area -->
+  <main id="preview">
+    <div id="paper-frame">
+      <canvas id="paper" aria-label="Rendered paper"></canvas>
+      <div id="paper-controls"></div>
+      <div id="paper-loading">Loading the game's fonts…</div>
+    </div>
+    <p id="paper-status"></p>
+    <ul id="diagnostics" aria-live="polite"></ul>
+
+    <!-- Content below render -->
+    <div class="image-container">
+      <p class="image-text">v8 woohoo.</p>
+      <img src="https://files.catbox.moe/gws2xt.png" alt="Placeholder Image">
+      <p class="image-text">Made with love - Simon / Big Dave / Fred Blehurst & Tunguso4ka <br>Special thanks to the the RMC14 community, support their project, the game is fun too!.</p>
+      <p class="image-text">#v8 changes: The render now uses the game's own fonts and layout rules, so line wrapping, underscores and mono should match in game pixel for pixel.</p>
+      <p class="image-text">Fill boxes, Sign boxes and checkboxes work. Click them on the paper like you would in game.</p>
+      <p class="image-text">The paper is square like in game, templates live in the sidebar, and the toolbar is a lot smaller.</p>
+      <p class="image-text">Warnings under the paper point out tags that would misbehave in game.</p>
+      <p class="image-text">________________________________________</p>
+      <p class="image-text">Please give me feedback as well as tips.</p>
+    </div>
+  </main>
+
+  <div id="color-popover" class="popover" hidden>
+    <div id="color-grid"></div>
+    <div class="hex-row">
+      <input type="color" id="hex-picker" value="#25b266" aria-label="Pick a colour">
+      <input type="text" id="hex-input" value="#25b266" maxlength="9" spellcheck="false" aria-label="Hex colour">
+      <button id="hex-insert">Use</button>
+    </div>
+  </div>
+
+  <div id="field-popover" class="popover" hidden></div>
+
+  <script src="robust-colors.js"></script>
+  <script src="robust-fonts.js"></script>
+  <script src="robust-markup.js"></script>
+  <script src="paper-renderer.js"></script>
+  <script src="logic.js"></script>
 </body>
 </html>
