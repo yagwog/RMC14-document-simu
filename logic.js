@@ -107,10 +107,78 @@ function render() {
   PaperRenderer.paint(canvas, model, dpr);
   canvas.style.width = `${model.width}px`;
   canvas.style.height = `${model.height}px`;
+  layoutWindow(model);
   renderControls(model);
   renderStatus(model);
   renderDiagnostics(model);
 }
+
+// ─── In-game window ───────────────────────────────────────────────────────────
+// The preview is a copy of the game's PaperWindow at its default 520×660 size: a 54px
+// close-button row, then a scroll area. When the paper is taller than that area the
+// game shows a 10px scrollbar on the right and the paper gets 10px narrower, so the
+// text re-wraps.
+const scroller = $('paper-scroller');
+const paperFrame = $('paper-frame');
+const gameScrollbar = $('game-scrollbar');
+const grabber = $('game-grabber');
+
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+function layoutWindow(model) {
+  scroller.style.width = `${model.contentWidth}px`;
+  paperFrame.style.marginLeft = `${model.paperX}px`;
+  paperFrame.style.width = `${model.width}px`;
+  paperFrame.style.height = `${model.height}px`;
+  gameScrollbar.hidden = !model.scrolls;
+  if (!model.scrolls) scroller.scrollTop = 0;
+  updateGrabber();
+}
+
+// Grabber maths from Robust's ScrollBar: the track is the bar's height minus the
+// 10px minimum grabber size, and the grabber spans Page/Max of it plus that 10px.
+function updateGrabber() {
+  const m = currentModel;
+  if (!m || !m.scrolls) return;
+  const track = Math.max(0, m.viewportHeight - PAPER.scrollbarWidth);
+  const max = m.height;
+  const value = clamp(scroller.scrollTop, 0, m.scrollMax);
+  const start = value / max * track;
+  const end = (value + m.viewportHeight) / max * track + PAPER.scrollbarWidth;
+  grabber.style.top = `${start}px`;
+  grabber.style.height = `${end - start}px`;
+}
+
+scroller.addEventListener('scroll', () => {
+  updateGrabber();
+  if (!fieldPopover.hidden) closeFieldPopover();
+});
+
+// Dragging the grabber scrolls the paper, using the same ratio the game uses.
+grabber.addEventListener('pointerdown', ev => {
+  const m = currentModel;
+  if (!m || !m.scrolls) return;
+  ev.preventDefault();
+  try { grabber.setPointerCapture(ev.pointerId); } catch { /* pointer already gone */ }
+  grabber.classList.add('grabbed');
+  const startY = ev.clientY, startValue = scroller.scrollTop;
+  const track = Math.max(1, m.viewportHeight - PAPER.scrollbarWidth);
+  const move = e => { scroller.scrollTop = startValue + (e.clientY - startY) * m.height / track; };
+  const up = () => {
+    grabber.classList.remove('grabbed');
+    grabber.removeEventListener('pointermove', move);
+    grabber.removeEventListener('pointerup', up);
+    grabber.removeEventListener('pointercancel', up);
+  };
+  grabber.addEventListener('pointermove', move);
+  grabber.addEventListener('pointerup', up);
+  grabber.addEventListener('pointercancel', up);
+});
+
+// Mouse wheel over the scrollbar strip still scrolls the paper, like in game.
+gameScrollbar.addEventListener('wheel', ev => {
+  scroller.scrollTop += ev.deltaY;
+  ev.preventDefault();
+}, { passive: false });
 
 function renderControls(model) {
   controlsLayer.textContent = '';
@@ -130,9 +198,10 @@ function renderControls(model) {
 }
 
 function renderStatus(model) {
-  const parts = [`Text width ${model.wrapWidth}px.`];
-  if (model.scrolls) parts.push('This paper is taller than the in-game window, so the game adds a scrollbar and wraps 10px narrower.');
-  $('paper-status').textContent = parts.join(' ');
+  const text = model.scrolls
+    ? `Scrollbar showing, like in game. The paper is ${model.width}px wide and text wraps at ${model.wrapWidth}px, 10px narrower than without it.`
+    : `No scrollbar at this window size. The paper is ${model.width}px wide and text wraps at ${model.wrapWidth}px.`;
+  $('paper-status').textContent = text;
 }
 
 function renderDiagnostics(model) {
@@ -188,9 +257,9 @@ function openPopoverAt(pop, anchor) {
 function replaceNthTag(tag, index, replacement) {
   const pos = PaperRenderer.findNthTag(editor.value, tag, index);
   if (pos < 0) return;
-  const scroll = $('preview').scrollTop;
+  const scroll = scroller.scrollTop;
   editRange(pos, pos + tag.length, replacement);
-  $('preview').scrollTop = scroll;
+  requestAnimationFrame(() => requestAnimationFrame(() => { scroller.scrollTop = scroll; }));
 }
 
 function openFormDialog(btn, index) {

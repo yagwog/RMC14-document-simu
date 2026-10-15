@@ -6,7 +6,7 @@
   <title>SS14 Document Formatter</title>
 
   <link rel="icon" type="image/png" href="icon.png">
-  <link rel="stylesheet" type="text/css" href="theme.css?v=8"/>
+  <link rel="stylesheet" type="text/css" href="theme.css?v=10"/>
 </head>
 <body>
   <aside id="sidebar">
@@ -66,9 +66,22 @@
 
   <!-- Render area -->
   <main id="preview">
-    <div id="paper-frame">
-      <canvas id="paper" aria-label="Rendered paper"></canvas>
-      <div id="paper-controls"></div>
+    <!-- Copy of the game's PaperWindow at its default 520×660 size: close-button row, then a scroll area holding the paper. -->
+    <div id="game-window">
+      <div class="close-row" aria-hidden="true">
+        <div class="close-panel">
+          <svg viewBox="0 0 22 22" width="22" height="22"><path d="M4.5 4.5l13 13M17.5 4.5l-13 13" stroke="currentColor" stroke-width="3.6" stroke-linecap="square"/></svg>
+        </div>
+      </div>
+      <div id="paper-viewport">
+        <div id="paper-scroller" tabindex="0" aria-label="Paper. Scrolls like the in-game window.">
+          <div id="paper-frame">
+            <canvas id="paper" aria-label="Rendered paper"></canvas>
+            <div id="paper-controls"></div>
+          </div>
+        </div>
+        <div id="game-scrollbar" hidden><div id="game-grabber"></div></div>
+      </div>
       <div id="paper-loading">Loading the game's fonts…</div>
     </div>
     <p id="paper-status"></p>
@@ -83,6 +96,7 @@
       <p class="image-text">Fill boxes, Sign boxes and checkboxes work. Click them on the paper like you would in game.</p>
       <p class="image-text">The paper is square like in game, templates live in the sidebar, and the toolbar is a lot smaller.</p>
       <p class="image-text">Warnings under the paper point out tags that would misbehave in game.</p>
+      <p class="image-text">The paper sits in a copy of the in-game window. The scrollbar shows up when the game's would now hopefully.</p>
       <p class="image-text">________________________________________</p>
       <p class="image-text">Please give me feedback as well as tips.</p>
     </div>
@@ -99,10 +113,10 @@
 
   <div id="field-popover" class="popover" hidden></div>
 
-  <script src="robust-colors.js?v=8"></script>
-  <script src="robust-fonts.js?v=8"></script>
-  <script src="robust-markup.js?v=8"></script>
-  <script src="paper-renderer.js?v=8"></script>
-  <script src="logic.js?v=8"></script>
+  <script src="robust-colors.js?v=10"></script>
+  <script src="robust-fonts.js?v=10"></script>
+  <script src="robust-markup.js?v=10"></script>
+  <script src="paper-renderer.js?v=10"></script>
+  <script src="logic.js?v=10"></script>
 </body>
 </html>

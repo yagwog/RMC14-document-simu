@@ -7,12 +7,16 @@
 
 const PAPER = {
   windowWidth: 520,          // PaperWindow SetSize="520 660"
-  border: 20,                // PaperContent StyleBoxFlat BorderThickness="20"
-  // Height of the scrollable paper area inside the 660px window, once the
-  // close-button row above it is taken out. Approximate: used only to decide
-  // when the game would show a scrollbar.
-  viewportHeight: 606,
-  scrollbarWidth: 10,        // StyleBase.DefaultGrabberSize
+  windowHeight: 660,
+  // Close-button row above the paper: Margin 6 + AngleRect padding 10 +
+  // 22px cross texture + 10 + 6. The scroll area gets the rest of the window.
+  closeRowHeight: 54,
+  paperMaxWidth: 600,        // PaperContent MaxWidth="600" (centred when the window is wider)
+  border: 20,                // PaperComponent.Thickness, applied as the StyleBoxFlat border
+  scrollbarWidth: 10,        // StyleBase.DefaultGrabberSize (the grabber's minimum size)
+  scrollbar: {               // StyleBase vScrollBarGrabber*: Gray / 140 / 160 at 35% alpha
+    normal: 'rgba(128,128,128,0.35)', hover: 'rgba(140,140,140,0.35)', grabbed: 'rgba(160,160,160,0.35)',
+  },
   background: '#ffffff',     // PaperComponent.Color = White
   textColor: { r: 25, g: 25, b: 25, a: 255 },   // PaperComponent.TextColor
   colorTagDefault: { r: 200, g: 200, b: 200, a: 255 }, // ColorTag.DefaultColor
@@ -315,8 +319,22 @@ const PaperRenderer = (() => {
     return n;
   }
 
-  // Full paper layout. Returns everything needed to paint and to wire up buttons.
-  function layout(source) {
+  // Paper width and text width for a given width of the scroll area.
+  function geometry(contentWidth) {
+    const paperWidth = Math.max(0, Math.min(contentWidth, PAPER.paperMaxWidth));
+    return { contentWidth, paperWidth, wrapWidth: Math.max(0, paperWidth - PAPER.border * 2) };
+  }
+
+  function extraBottomFor(source) {
+    return PAPER.extraMarginPerTag *
+      (countOccurrences(source, '[form]') + countOccurrences(source, '[signature]') + countOccurrences(source, '[check]'));
+  }
+
+  const DEFAULT_WINDOW = { width: PAPER.windowWidth, height: PAPER.windowHeight };
+
+  // Full paper layout for the paper window (the game's default size is 520×660).
+  // Returns everything needed to paint the paper, place the buttons and draw the scrollbar.
+  function layout(source, win = DEFAULT_WINDOW) {
     const defaultFont = RobustFonts.defaultFont();
     const parsed = RobustMarkup.parse(source);
     const diag = makeDiagnostics(source);
@@ -332,35 +350,51 @@ const PaperRenderer = (() => {
         msg: `"${snippet}" isn't a valid tag, so the game shows it as plain text${parsed.invalidTags.length > 1 ? ` (${parsed.invalidTags.length} spots)` : ''}.` });
     }
 
-    const extraBottom = PAPER.extraMarginPerTag *
-      (countOccurrences(source, '[form]') + countOccurrences(source, '[signature]') + countOccurrences(source, '[check]'));
-    const fullWidth = PAPER.windowWidth - PAPER.border * 2;
+    const extraBottom = extraBottomFor(source);
+    const viewportHeight = Math.max(0, win.height - PAPER.closeRowHeight);
+    const contentHeightOf = lay => lay.height + PAPER.border * 2 + extraBottom;
 
-    // First pass at full width. If the paper is taller than the window,
-    // the game shows a scrollbar, which narrows the text area.
-    let wrapWidth = fullWidth;
-    let lay = update(parsed.nodes, wrapWidth, defaultFont, diag);
-    let scrolls = lay.height + PAPER.border * 2 + extraBottom > PAPER.viewportHeight;
-    if (scrolls) {
-      wrapWidth = fullWidth - PAPER.scrollbarWidth;
-      lay = update(parsed.nodes, wrapWidth, defaultFont, null);
+    // The game's ScrollContainer creates its scrollbar already visible, and opening the
+    // window only measures it, so the first real layout wraps the text with the
+    // scrollbar's 10px taken off. If the paper overflows at that width the scrollbar
+    // stays. Otherwise it hides, and the text re-wraps at the full width.
+    let geo = geometry(win.width - PAPER.scrollbarWidth);
+    let lay = update(parsed.nodes, geo.wrapWidth, defaultFont, diag);
+    const scrolls = contentHeightOf(lay) > viewportHeight;
+    if (!scrolls) {
+      geo = geometry(win.width);
+      lay = update(parsed.nodes, geo.wrapWidth, defaultFont, null);
     }
 
     const drawn = draw(parsed.nodes, lay.lineBreaks, defaultFont);
-    const contentHeight = Math.max(lay.height, drawn.bottom);
-    const paperHeight = Math.max(PAPER.viewportHeight, Math.ceil(contentHeight + PAPER.border * 2 + extraBottom));
+    // The white panel is as tall as the game measured it, or the scroll area if that's taller.
+    const paperHeight = Math.max(viewportHeight, Math.ceil(contentHeightOf(lay)));
+
+    // Sign boxes make a line 8px taller, but the game only budgets 3px per box, so
+    // papers with many of them get their last few pixels cut off.
+    const overflow = Math.ceil(PAPER.border + drawn.bottom - paperHeight);
+    if (overflow > 0) {
+      diag.items.push({ line: null, level: 'warn',
+        msg: `The Fill/Sign boxes push the text ${overflow}px past the bottom of the paper, so the end gets cut off in game. Adding blank lines at the end fixes it.` });
+    }
 
     let blank = null;
     if (source.length === 0) {
       let w = 0;
       for (const ch of PAPER.blankMessage) w += defaultFont.charAdvance(ch.codePointAt(0)) || 0;
-      blank = { x: Math.floor((fullWidth - w) / 2), text: PAPER.blankMessage };
+      blank = { x: Math.floor((geo.wrapWidth - w) / 2), text: PAPER.blankMessage };
     }
 
     return {
-      source, parsed, defaultFont, wrapWidth, scrolls,
+      source, parsed, defaultFont, scrolls,
+      window: { width: win.width, height: win.height },
+      viewportHeight,
+      contentWidth: geo.contentWidth,                      // scroll area width (minus the scrollbar)
+      paperX: Math.round((geo.contentWidth - geo.paperWidth) / 2), // centred when capped at 600px
+      wrapWidth: geo.wrapWidth,
+      width: geo.paperWidth, height: paperHeight,           // the white paper panel
+      scrollMax: Math.max(0, paperHeight - viewportHeight),
       glyphs: drawn.glyphs, controls: drawn.controls,
-      width: PAPER.windowWidth, height: paperHeight,
       diagnostics: diag.items.sort((a, b) => (a.line || 0) - (b.line || 0)),
       blank,
     };
@@ -370,6 +404,9 @@ const PaperRenderer = (() => {
 
   // Paints a layout onto a canvas at the given pixel scale.
   function paint(canvas, model, scale, { drawControls = false } = {}) {
+    // Browsers refuse canvases taller than about 32k pixels, so very long papers
+    // are drawn at a lower pixel density instead of coming out blank.
+    scale = Math.max(0.25, Math.min(scale, 32000 / Math.max(1, model.height), 16000 / Math.max(1, model.width)));
     canvas.width = Math.round(model.width * scale);
     canvas.height = Math.round(model.height * scale);
     const g = canvas.getContext('2d');

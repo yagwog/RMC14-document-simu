@@ -234,21 +234,82 @@ button {
   padding: 20px 24px;
 }
 
+/* Copy of the game's PaperWindow at its default 520×660 size. Anything that isn't
+   paper, the close button or the scrollbar is see-through in game, so the outline
+   just marks the window's edges. */
+#game-window {
+  position: relative;
+  width: 520px;
+  height: 660px;
+  outline: 1px dashed var(--border);
+}
+
+.close-row { position: relative; height: 54px; }
+.close-panel {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  background: #25252a;
+  color: #4b596a;
+  /* The game's AngleRect: top-right and bottom-left corners cut by 10px. */
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+}
+
+#paper-viewport {
+  position: absolute;
+  top: 54px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+}
+#paper-scroller {
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;          /* the game-style scrollbar is drawn separately */
+}
+#paper-scroller::-webkit-scrollbar { display: none; }
+#paper-scroller:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
 /* The paper is square and white, like PaperWindow in game. */
 #paper-frame {
   position: relative;
-  width: 520px;
-  min-height: 606px;
   background: #ffffff;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
 }
 #paper { display: block; }
 #paper-controls { position: absolute; inset: 0; pointer-events: none; }
+
+/* The game's scrollbar: a 10px grabber, Gray at 35% alpha, no track. */
+#game-scrollbar {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 10px;
+  height: 100%;
+}
+#game-scrollbar[hidden] { display: none; }
+#game-grabber {
+  position: absolute;
+  left: 0;
+  width: 10px;
+  background: rgba(128, 128, 128, 0.35);
+  cursor: default;
+  touch-action: none;
+}
+#game-grabber:hover { background: rgba(140, 140, 140, 0.35); }
+#game-grabber.grabbed { background: rgba(160, 160, 160, 0.35); }
+
 #paper-loading {
   position: absolute;
-  inset: 0;
+  inset: 54px 0 0 0;
   display: grid;
   place-items: center;
+  background: #ffffff;
   color: #6b6b6b;
   font-size: 14px;
 }
