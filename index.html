@@ -6,7 +6,7 @@
   <title>SS14 Document Formatter</title>
 
   <link rel="icon" type="image/png" href="icon.png">
-  <link rel="stylesheet" type="text/css" href="theme.css?v=11"/>
+  <link rel="stylesheet" type="text/css" href="theme.css?v=12"/>
 </head>
 <body>
   <aside id="sidebar">
@@ -36,7 +36,6 @@
         <button data-action="bullet" title="Bullet [bullet/]">•</button>
         <button id="color-btn" data-action="color" title="Colour"><span class="swatch-icon"></span></button>
         <button data-action="center" title="Centre the selected lines, using the game's real character widths" class="wide">Centre</button>
-        <button id="font-btn" data-action="font" class="card-only popover-anchor" title="Font and size [font=&quot;Name&quot; size=N]. Only business cards show it.">Font</button>
       </div>
 
       <h2 class="paper-only">Fields</h2>
@@ -77,7 +76,7 @@
 
   <!-- Editors for user input: one for paper, one for business cards -->
   <textarea id="editor" class="editor" spellcheck="false" aria-label="Paper text" placeholder="Type here and watch with amazement as it's rendered in the render area..."></textarea>
-  <textarea id="card-editor" class="editor" spellcheck="false" aria-label="Business card text" placeholder="Write your business card here. Every tag works on a card, even [font=&quot;Monospace&quot; size=20]." hidden></textarea>
+  <textarea id="card-editor" class="editor" spellcheck="false" aria-label="Business card text" placeholder="Write your business card here." hidden></textarea>
 
   <!-- Render area -->
   <main id="preview">
@@ -107,7 +106,6 @@
       </div>
       <div id="card-frame">
         <canvas id="card-canvas" aria-label="Rendered business card"></canvas>
-        <div id="card-controls"></div>
       </div>
       <div id="card-loading">Loading the game's fonts…</div>
     </div>
@@ -120,7 +118,7 @@
       <p class="image-text">v9 woohoo.</p>
       <img src="https://files.catbox.moe/gws2xt.png" alt="Placeholder Image">
       <p class="image-text">Made with love - Simon / Big Dave / Fred Blehurst & Tunguso4ka <br>Special thanks to the the RMC14 community, support their project, the game is fun too!.</p>
-      <p class="image-text">#v9 changes: Business cards! Press "Business card" at the top left to write one. It renders like the game's card window, where every tag works, even [font].</p>
+      <p class="image-text">#v9 changes: Business cards! Press "Business card" at the top left to write one. It renders like the game's card window.</p>
       <p class="image-text">Date and Time boxes, plus [operation], [planet] and [ship], work on paper like they do in game now.</p>
 
     </div>
@@ -137,10 +135,10 @@
 
   <div id="field-popover" class="popover" hidden></div>
 
-  <script src="robust-colors.js?v=11"></script>
-  <script src="robust-fonts.js?v=11"></script>
-  <script src="robust-markup.js?v=11"></script>
-  <script src="paper-renderer.js?v=11"></script>
-  <script src="logic.js?v=11"></script>
+  <script src="robust-colors.js?v=12"></script>
+  <script src="robust-fonts.js?v=12"></script>
+  <script src="robust-markup.js?v=12"></script>
+  <script src="paper-renderer.js?v=12"></script>
+  <script src="logic.js?v=12"></script>
 </body>
 </html>

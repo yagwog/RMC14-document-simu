@@ -32,7 +32,6 @@ const controlsLayer = $('paper-controls');
 const paperWindow = $('game-window');
 const cardWindow = $('card-window');
 const cardCanvas = $('card-canvas');
-const cardControls = $('card-controls');
 
 let currentModel = null;
 const loadedTemplates = { paper: null, card: null }; // { path, text } for each editor
@@ -105,7 +104,6 @@ function centerText() {
 
 // ─── Rendering ────────────────────────────────────────────────────────────────
 let renderQueued = false;
-let animationTimer = 0;
 function scheduleRender() {
   if (renderQueued) return;
   renderQueued = true;
@@ -114,8 +112,7 @@ function scheduleRender() {
 
 function render() {
   if (!RobustFonts.ready) return;
-  clearTimeout(animationTimer);
-  const opts = { round: getRound(), time: Date.now() };
+  const opts = { round: getRound() };
   const card = mode === 'card';
   const model = card ? PaperRenderer.layoutCard(editor.value, opts) : PaperRenderer.layoutPaper(editor.value, undefined, opts);
   currentModel = model;
@@ -127,8 +124,6 @@ function render() {
   renderControls(model);
   renderStatus(model);
   renderDiagnostics(model);
-  // [scramble] re-rolls on a timer, so keep redrawing while one is showing.
-  if (model.animate !== Infinity) animationTimer = setTimeout(scheduleRender, model.animate);
 }
 
 // ─── In-game paper window ─────────────────────────────────────────────────────
@@ -207,39 +202,22 @@ const BUTTON_TITLES = {
   time: 'Write the in-game time here',
 };
 
+// Only paper has buttons: business cards don't allow the tags that make them.
 function renderControls(model) {
-  const card = model.kind === 'card';
-  const layer = card ? cardControls : controlsLayer;
   controlsLayer.textContent = '';
-  cardControls.textContent = '';
   for (const c of model.controls) {
-    const el = document.createElement(c.type === 'button' ? 'button' : 'span');
-    el.style.left = px(model.origin.x + c.x);
-    el.style.top = px(model.origin.y + c.y);
-    el.style.width = px(c.w);
-    el.style.height = px(c.h);
-    if (c.type === 'button') {
-      el.className = 'paper-btn';
-      el.textContent = c.label;
-      el.dataset.kind = c.kind;
-      el.dataset.index = c.index;
-      el.style.paddingLeft = px(PaperRenderer.buttonLabelX(c.w, c.label, model.defaultFont));
-      if (card) {
-        el.classList.add('dead');
-        el.title = 'On a business card this button does nothing in game.';
-      } else {
-        el.title = BUTTON_TITLES[c.kind];
-      }
-    } else if (c.type === 'link') {
-      el.className = 'paper-link';
-      el.title = c.kind === 'cmdlink'
-        ? `Clicking this in game runs the console command: ${c.target}`
-        : `Guidebook link to "${c.target}". Clicking it here does nothing in game.`;
-    } else {
-      el.className = 'paper-icon';
-      el.title = `${c.language} language icon`;
-    }
-    layer.appendChild(el);
+    const b = document.createElement('button');
+    b.className = 'paper-btn';
+    b.textContent = c.label;
+    b.dataset.kind = c.kind;
+    b.dataset.index = c.index;
+    b.title = BUTTON_TITLES[c.kind];
+    b.style.left = px(model.origin.x + c.x);
+    b.style.top = px(model.origin.y + c.y);
+    b.style.width = px(c.w);
+    b.style.height = px(c.h);
+    b.style.paddingLeft = px(PaperRenderer.buttonLabelX(c.w, c.label, model.defaultFont));
+    controlsLayer.appendChild(b);
   }
 }
 
@@ -256,7 +234,6 @@ function renderStatus(model) {
       ? `Scrollbar showing, like in game. The paper is ${model.width}px wide and text wraps at ${model.wrapWidth}px, 10px narrower than without it.`
       : `No scrollbar at this window size. The paper is ${model.width}px wide and text wraps at ${model.wrapWidth}px.`;
   }
-  if (model.fontsLoading) status.append(' Loading fonts…');
 }
 
 function renderDiagnostics(model) {
@@ -457,46 +434,7 @@ function openRoundDialog(anchor) {
   fields.operation.focus();
 }
 
-// [font="Name" size=N]: only business cards show it, since paper doesn't allow the tag.
-function openFontDialog(anchor) {
-  closeFieldPopover();
-  const last = store.get('ss14paper.font', { name: 'Default', size: 20 });
-  const nameLabel = document.createElement('label');
-  nameLabel.textContent = 'Font';
-  const select = document.createElement('select');
-  select.id = nameLabel.htmlFor = 'font-name';
-  for (const name of Object.keys(ROBUST_FONT_PROTOTYPES)) {
-    const o = document.createElement('option');
-    o.value = name;
-    o.textContent = ROBUST_FONT_PROTOTYPES[name] === null ? `${name} (shown as Default here)` : name;
-    select.appendChild(o);
-  }
-  select.value = RobustFonts.isPrototype(last.name) ? last.name : 'Default';
-  const sizeLabel = document.createElement('label');
-  sizeLabel.textContent = 'Size';
-  const size = document.createElement('input');
-  size.type = 'number';
-  size.min = 1;
-  size.max = 200;
-  size.className = 'field-input';
-  size.id = sizeLabel.htmlFor = 'font-size';
-  size.value = last.size || '';
-  const submit = () => {
-    const n = parseInt(size.value, 10);
-    store.set('ss14paper.font', { name: select.value, size: n > 0 ? n : '' });
-    closeFieldPopover();
-    insertTag(n > 0 ? `font="${select.value}" size=${n}` : `font="${select.value}"`);
-  };
-  size.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); submit(); } });
-  fieldPopover.append(nameLabel, select, sizeLabel, size,
-    popoverHint('Wraps the selection in [font="Name" size=N]. Size 12 is normal text. Leave the size blank to keep the size around it.'),
-    popoverRow(popoverButton('Insert', submit), popoverButton('Cancel', closeFieldPopover)));
-  openPopoverAt(fieldPopover, anchor);
-  select.focus();
-}
-
-// Paper buttons work like in game. On a business card they do nothing, so the card's
-// layer has no click handling at all.
+// Paper buttons work like in game.
 controlsLayer.addEventListener('click', ev => {
   const btn = ev.target.closest('.paper-btn');
   if (!btn) return;
@@ -627,7 +565,6 @@ document.querySelector('.tools').addEventListener('click', ev => {
       ev.stopPropagation();
       if (colorPopover.hidden) openPopoverAt(colorPopover, b); else colorPopover.hidden = true;
       break;
-    case 'font': ev.stopPropagation(); openFontDialog(b); break;
     case 'finalize': {
       const cleaned = PaperRenderer.cleanUnfilledTags(editor.value);
       if (cleaned !== editor.value) replaceAll(cleaned);
@@ -805,8 +742,6 @@ updateRoundLabel();
 initTemplates();
 setMode(initialMode(), { initial: true });
 
-// Fonts that only [font="..."] uses arrive later. Redraw when one does.
-RobustFonts.onFaceLoaded = () => scheduleRender();
 
 RobustFonts.load()
   .then(() => {

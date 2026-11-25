@@ -39,9 +39,6 @@ const CARD = {
 };
 
 const PaperRenderer = (() => {
-  // Biggest size the simulator draws. The game would try anything, but its glyph sheets
-  // break long before this (see bigGlyph below).
-  const MAX_SIZE = 1000;
 
   // ── WordWrap.cs ──
   class WordWrap {
@@ -122,20 +119,16 @@ const PaperRenderer = (() => {
   const peek = st => st.length ? st[st.length - 1] : null;
 
   // FontTag.CreateFont: the size comes from the font on top of the stack (12 if there's
-  // none) or the tag's size= attribute, and unknown font ids fall back to Default.
-  function createFont(ctx, node, fontId, env, forcedSize) {
+  // none), or from the heading level for [head]. A size= attribute does nothing.
+  function createFont(ctx, node, key, env, headSize) {
     let size = RobustFonts.DEFAULT_SIZE;
     const top = peek(ctx.font);
     if (top) size = top.font.size;
-    const sp = forcedSize === undefined && node.attrs ? node.attrs.size : null;
-    if (forcedSize !== undefined) size = forcedSize;
-    else if (sp && sp.type === 'long') size = sp.value;
-    if (env.diag) env.diag.fontSize(node, sp, size);
-    // FreeType turns anything under 1pt into 1pt.
-    const { font, status } = RobustFonts.prototypeFont(fontId, Math.min(Math.max(1, size), MAX_SIZE));
-    if (status === 'loading') env.state.fontsLoading = true;
-    if (env.diag && status !== 'ok') env.diag.fontStatus(node, fontId, status);
-    return font;
+    if (headSize !== undefined) size = headSize;
+    else if (env.diag && node.attrs && node.attrs.size) {
+      env.diag.add(node, 'info', `size= does nothing on [${node.name}], so the text stays the size around it.`);
+    }
+    return RobustFonts.tagFont(key, size);
   }
 
   // ── Markup tags ──
@@ -146,13 +139,13 @@ const PaperRenderer = (() => {
     ctx.font.pop();
   };
 
-  // BoldTag, ItalicTag, BoldItalicTag and MonoTag switch to a font prototype. The game
-  // never fills MarkupDrawingContext.Tags, so [bold] inside [italic] is just bold.
-  function fontTag(prototype) {
+  // BoldTag, ItalicTag, BoldItalicTag and MonoTag switch font. The game never fills
+  // MarkupDrawingContext.Tags, so [bold] inside [italic] is just bold.
+  function fontTag(key) {
     return {
       push(node, ctx, env) {
         if (env.diag) env.diag.checkNesting(node, ctx);
-        ctx.font.push({ font: createFont(ctx, node, prototype, env), tag: node.name });
+        ctx.font.push({ font: createFont(ctx, node, key, env), tag: node.name });
       },
       pop: popFont,
     };
@@ -160,142 +153,33 @@ const PaperRenderer = (() => {
 
   // PaperTagButton (#10571): exactly one line of text tall, with a 1px margin left and right.
   // Its height is PaperTagButton.LineHeight, which the paper window sets to the default
-  // font's whole-pixel line height. A business card never sets it, so there it keeps the
-  // value from the last paper window drawn (the same 22px, or 16px if no paper has been
-  // opened since the game started).
+  // font's whole-pixel line height.
   function buttonTag(kind, width, label) {
     return {
       control(node, env) {
         const lh = env.tagLineHeight;
-        if (env.diag && !env.profile.liveButtons) env.diag.deadButton(node, label);
-        return { type: 'button', kind, label, w: width === null ? lh : width, h: lh, margin: [1, 0, 1, 0] };
+        return { kind, label, w: width === null ? lh : width, h: lh, margin: [1, 0, 1, 0] };
       },
     };
   }
-
-  // CommandLinkTag and TextLinkTag: a Label holding the link text. A Label uses its own
-  // style font (the default 12pt stack), not the markup font around it, and a fixed colour.
-  function linkTag(kind, attr, color) {
-    return {
-      control(node, env) {
-        if (node.closing) return null;
-        const v = node.value, target = node.attrs && node.attrs[attr];
-        if (!v || v.type !== 'string' || !target || target.type !== 'string') {
-          if (env.diag) env.diag.add(node, 'info', `[${kind}] needs ="text" and ${attr}="..." or it shows nothing.`);
-          return null;
-        }
-        const f = env.defaultFont, m = f.metrics();
-        const lines = v.value.split('\n');
-        const w = Math.max(...lines.map(line => runWidth(line, f)));
-        if (env.diag) env.diag.link(node, kind, target.value);
-        return { type: 'link', kind, text: v.value, target: target.value, color,
-          w, h: m.height + m.lineHeight * (lines.length - 1), margin: [0, 0, 0, 0] };
-      },
-    };
-  }
-
-  // LanguageIconTag: a 20×21 control holding the language's 16px icon, 5px down.
-  const LANGUAGES = new Set(['English', 'Xeno', 'French', 'Spanish', 'Japanese', 'Chinese', 'Russian',
-    'German', 'Scandinavian', 'Hindi', 'SignLanguage', 'Primitive']);
-  const langIconTag = {
-    control(node, env) {
-      if (node.closing) return null;
-      const a = node.attrs && node.attrs.language;
-      if (!a || a.type !== 'string' || !LANGUAGES.has(a.value)) {
-        if (env.diag) env.diag.add(node, 'info', `[langicon] needs language="..." naming one of the game's languages (${[...LANGUAGES].join(', ')}), or it shows nothing.`);
-        return null;
-      }
-      if (env.diag) env.diag.once('langicon', node, 'info', "[langicon] shows a language's icon in game. The simulator doesn't have the icons, so it draws a grey square the same size.");
-      return { type: 'icon', kind: 'langicon', language: a.value, w: 20, h: 21, margin: [0, 0, 0, 0] };
-    },
-  };
 
   // OperationTagHandler, PlanetTagHandler, ShipTagHandler: names from the round info, or a
   // placeholder when there's none.
   const roundTag = (key, fallback) => ({ textBefore: (node, env) => env.round[key] || fallback });
 
-  // ScrambleTag: `length` random characters from `chars` (at most 32), re-rolled every `rate`
-  // milliseconds. The random seed comes from the time and the node's hash code, and that hash
-  // ignores attributes, so every [scramble] in a text shows the same characters.
-  function scrambleText(node, env) {
-    const { rate, length, chars } = node.attrs || {};
-    if (!rate || rate.type !== 'long' || !length || length.type !== 'long' || !chars || chars.type !== 'string') {
-      if (env.diag) env.diag.add(node, 'info', '[scramble] needs rate=, length= and chars="..." or it shows nothing.');
-      return '';
-    }
-    const n = Math.min(length.value, 32);
-    if (n <= 0) return '';
-    if (!chars.value.length) {
-      if (env.diag) env.diag.add(node, 'error', '[scramble] with chars="" makes the game throw an error. Give it some characters.');
-      return '';
-    }
-    let tick = 0;
-    if (rate.value !== 0) {
-      tick = Math.trunc(env.time / rate.value);
-      env.state.animate = Math.min(env.state.animate, Math.max(Math.abs(rate.value), 40));
-    }
-    let seed = (tick + hashString(`${node.name}|${node.value ? JSON.stringify(node.value) : ''}`)) >>> 0;
-    let out = '';
-    for (let i = 0; i < n; i++) {
-      seed = (seed + 0x6D2B79F5) >>> 0;  // mulberry32
-      let t = Math.imul(seed ^ (seed >>> 15), seed | 1);
-      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-      const r = ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-      out += chars.value[Math.floor(r * chars.value.length)];  // char by char, like ToCharArray()
-    }
-    return out;
-  }
-
-  function hashString(s) {
-    let h = 2166136261;
-    for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
-    return h >>> 0;
-  }
-
-  // KeyBindTag: the reader's own key for that action, or the action's name if they have none.
-  const keybindTag = {
-    textBefore(node, env) {
-      const v = node.value;
-      if (!v || v.type !== 'string') return '';
-      if (env.diag) env.diag.once('keybind', node, 'info', `[keybind] shows the reader's own key for "${v.value}", so it reads differently from person to person. The simulator shows the name.`);
-      return v.value;
-    },
-  };
-
-  // ProtodataTag: a value from the game's prototypes, which the simulator doesn't have.
-  const protodataTag = {
-    textBefore(node, env) {
-      const v = node.value, a = node.attrs || {};
-      if (!v || v.type !== 'string' || !a.comp || !a.member) return '';
-      if (env.diag) env.diag.once('protodata', node, 'info', "[protodata] shows a value from the game's data. The simulator doesn't have it, so it shows ??? like the game does when the lookup fails.");
-      return '???';
-    },
-  };
-
-  // Every markup tag the game registers: the engine's own tags plus every IMarkupTagHandler
-  // in Content.Client (MarkupTagManager). Tag names must be written exactly as here.
+  // The markup tags paper or business cards allow. Tag names must be written exactly as here.
   const TAG_HANDLERS = new Map(Object.entries({
-    bold: fontTag('DefaultBold'),
-    italic: fontTag('DefaultItalic'),
-    bolditalic: fontTag('DefaultBoldItalic'),
-    mono: fontTag('Monospace'),
-    font: {
-      push(node, ctx, env) {
-        const v = node.value;
-        if (env.diag && v && v.type === 'color') env.diag.add(node, 'warn', `Font names need quotes, like [font="${v.raw}"]. Without them the game uses Default.`);
-        if (env.diag && v && v.type === 'long') env.diag.add(node, 'warn', `[font=${v.value}] doesn't set a size. Use [font size=${v.value}].`);
-        const id = v && v.type === 'string' ? v.value : 'Default';
-        ctx.font.push({ font: createFont(ctx, node, id, env), tag: 'font' });
-      },
-      pop: popFont,
-    },
+    bold: fontTag('bold'),
+    italic: fontTag('italic'),
+    bolditalic: fontTag('bolditalic'),
+    mono: fontTag('mono'),
     head: {
       push(node, ctx, env) {
         const v = node.value;
         if (v && v.type === 'long') {
           const level = Math.min(Math.max(v.value, 1), 3);
           const size = Math.ceil(RobustFonts.DEFAULT_SIZE * 2 / Math.sqrt(level));
-          ctx.font.push({ font: createFont(ctx, node, 'DefaultBold', env, size), tag: 'head' });
+          ctx.font.push({ font: createFont(ctx, node, 'bold', env, size), tag: 'head' });
         } else if (env.diag) {
           env.diag.add(node, 'warn', '[head] needs a number (1, 2 or 3). Without one it does nothing, but its closing tag still removes a style.');
         }
@@ -317,8 +201,6 @@ const PaperRenderer = (() => {
       },
     },
     bullet: { textBefore: () => ' · ' },
-    cmdlink: linkTag('cmdlink', 'command', RobustMarkup.createColor('LightBlue')),
-    textlink: linkTag('textlink', 'link', RobustMarkup.createColor('CornflowerBlue')),
     form: buttonTag('form', 32, 'Fill'),
     signature: buttonTag('signature', 48, 'Sign'),
     check: buttonTag('check', null, '☐'),
@@ -327,28 +209,27 @@ const PaperRenderer = (() => {
     operation: roundTag('operation', 'Unknown Operation'),
     planet: roundTag('planet', 'Unknown Planet'),
     ship: roundTag('ship', 'Unknown Ship'),
-    scramble: { textBefore: scrambleText },
-    keybind: keybindTag,
-    protodata: protodataTag,
-    langicon: langIconTag,
   }));
 
   const PROFILES = {
     // PaperWindow._allowedTags.
     paper: {
-      name: 'paper', liveButtons: true,
+      name: 'paper',
       allowed: new Set(['bolditalic', 'bold', 'bullet', 'color', 'head', 'italic', 'mono', 'form', 'signature',
         'check', 'date', 'time', 'operation', 'planet', 'ship']),
     },
-    // BusinessCardWindow passes no list to SetMessage, so every registered tag works. The
-    // Fill / Sign / check / Date / Time buttons still appear, but their click handlers look
-    // for a PaperWindow parent, so on a card they do nothing.
-    card: { name: 'card', liveButtons: false, allowed: null },
+    // BusinessCardWindow.AllowedTags: paper's text tags, without the Fill / Sign / check /
+    // Date / Time buttons, which would do nothing on a card.
+    card: {
+      name: 'business card',
+      allowed: new Set(['bolditalic', 'bold', 'bullet', 'color', 'head', 'italic', 'mono',
+        'operation', 'planet', 'ship']),
+    },
   };
 
   function handlerFor(name, profile) {
     const h = TAG_HANDLERS.get(name);
-    return h && (!profile.allowed || profile.allowed.has(name)) ? h : null;
+    return h && profile.allowed.has(name) ? h : null;
   }
 
   // RichTextEntry.ProcessNode. Returns the text this node contributes.
@@ -389,9 +270,7 @@ const PaperRenderer = (() => {
     return {
       profile, defaultFont, diag,
       round: opts.round || {},
-      time: opts.time || 0,
       tagLineHeight: defaultFont.metrics().lineHeight,
-      state: { animate: Infinity, fontsLoading: false },  // shared by every pass over the text
     };
   }
 
@@ -406,7 +285,6 @@ const PaperRenderer = (() => {
     };
     const items = [];
     const seen = new Set();
-    const fontNames = Object.keys(ROBUST_FONT_PROTOTYPES);
     const d = {
       items, lineOf,
       add(node, level, msg) {
@@ -429,9 +307,9 @@ const PaperRenderer = (() => {
         if (lower !== name && handlerFor(lower, profile)) {
           d.add(node, 'info', `[${name}] isn't a tag, because tag names are lower case in game. Write [${lower}].`);
         } else if (TAG_HANDLERS.has(name)) {
-          d.add(node, 'info', `[${name}] only works on business cards. Paper hides it.`);
+          d.add(node, 'info', `[${name}] only works on paper. Business cards hide it.`);
         } else {
-          d.add(node, 'info', `[${name}] isn't a ${profile.allowed ? 'paper tag' : 'tag the game knows'}, so the game hides it.`);
+          d.add(node, 'info', `[${name}] isn't a ${profile.name} tag, so the game hides it.`);
         }
       },
       checkNesting(node, ctx) {
@@ -449,33 +327,6 @@ const PaperRenderer = (() => {
         } else if (top.tag !== node.name) {
           d.add(node, 'warn', `[/${node.name}] closes the [${top.tag}] ${what} first, because the game closes tags in stack order.`);
         }
-      },
-      fontSize(node, sp, size) {
-        if (sp && sp.type !== 'long') d.add(node, 'warn', 'size needs a plain number, like size=20, so the game ignores this one.');
-        else if (size < 1) d.add(node, 'warn', `size=${size} gets drawn at size 1 in game, which is too small to read.`);
-        else if (size > MAX_SIZE) d.add(node, 'warn', `size=${size} is too big to preview, so it's drawn at size ${MAX_SIZE} here.`);
-      },
-      fontStatus(node, id, status) {
-        if (status === 'unknown') {
-          const match = fontNames.find(n => n.toLowerCase() === String(id).toLowerCase());
-          d.add(node, 'warn', match
-            ? `There's no font called "${id}", because font names are case-sensitive, so the game uses Default. Did you mean "${match}"?`
-            : `There's no font called "${id}", so the game uses Default. The fonts are ${fontNames.join(', ')}.`);
-        } else if (status === 'unavailable') {
-          d.add(node, 'info', `"${id}" isn't free to share, so the simulator draws it with Default and its spacing won't match the game.`);
-        } else if (status === 'failed') {
-          d.add(node, 'info', `Couldn't load the "${id}" font, so it's drawn with Default here.`);
-        }
-      },
-      deadButton(node, label) {
-        d.once(`dead:${label}`, node, 'warn', `[${node.name}] puts a ${label} button on the card, but on a business card clicking it does nothing in game.`);
-      },
-      link(node, kind, target) {
-        if (kind === 'cmdlink') d.add(node, 'warn', `Clicking this [cmdlink] makes the reader's game run the console command "${target}".`);
-        else d.once('textlink', node, 'info', '[textlink] links only go somewhere in the guidebook. Clicking one here does nothing.');
-      },
-      bigGlyph(node) {
-        d.once('bigglyph', node, 'warn', 'Some letters here are bigger than the 256×256 sheets the game draws text from, so in game they may come out blank or garbled.');
       },
       abort(node) {
         d.add(node, 'warn', 'A character here is wider than the space for text, so the game stops wrapping and everything after it goes on one line.');
@@ -524,7 +375,6 @@ const PaperRenderer = (() => {
       const node = nodes[ni];
       const text = processNode(node, ctx, env);
       const font = currentFont();
-      const checkSheets = env.diag && font.metrics().ppem > 128;
       for (const ch of text) {
         const rune = ch.codePointAt(0);
         const r = ww.nextRune(rune);
@@ -533,11 +383,6 @@ const PaperRenderer = (() => {
         if (r.skip) continue;
         const adv = font.charAdvance(rune);
         if (adv === null) continue;
-        if (checkSheets) {
-          const g = font.resolveGlyph(rune);
-          const ink = g && g.face.glyphInk(g.cp, font.size);
-          if (ink && (ink.w > 256 || ink.h > 256)) env.diag.bigGlyph(node);
-        }
         const m = ww.nextMetrics(adv);
         checkLineBreak(m.breakLine);
         if (m.abort) return aborted(node);
@@ -617,8 +462,7 @@ const PaperRenderer = (() => {
       const desiredW = Math.min(c.w + c.margin[0] + c.margin[2], lay.width);
       const desiredH = Math.min(c.h + c.margin[1] + c.margin[3], lay.height);
       controlYAdvance = Math.max(0, desiredH - fm.lineHeight);
-      if (c.type === 'icon') mark(top + 5, top + 21, { node, k: 0 });
-      else mark(top, top + c.h, { node, k: 0 });
+      mark(top, top + c.h, { node, k: 0 });
       x += desiredW;
     }
     if (ink.top === Infinity) { ink.top = 0; ink.bottom = 0; }
@@ -681,7 +525,7 @@ const PaperRenderer = (() => {
     const cutTop = Math.ceil(-PAPER.border - drawn.ink.top);
     if (cutTop > 0) {
       diag.at(sourcePos(source, drawn.ink.topAt), 'warn',
-        `The first line's big text pokes ${cutTop}px above the paper, so the top of it gets cut off in game. A line break straight after the opening size tag fixes it.`);
+        `The first line's big text pokes ${cutTop}px above the paper, so the top of it gets cut off in game. A line break straight after the opening [head] tag fixes it.`);
     }
     const cutBottom = Math.ceil(PAPER.border + drawn.ink.bottom - paperHeight);
     if (cutBottom > 0) {
@@ -709,7 +553,6 @@ const PaperRenderer = (() => {
       glyphs: drawn.glyphs, controls: drawn.controls,
       diagnostics: sortDiagnostics(diag.items),
       blank,
-      animate: env.state.animate, fontsLoading: env.state.fontsLoading,
     };
   }
 
@@ -737,7 +580,7 @@ const PaperRenderer = (() => {
     const cutBottom = Math.max(0, Math.ceil(CARD.margin + drawn.ink.bottom - cardHeight));
     if (cutTop > 0) {
       diag.at(sourcePos(source, drawn.ink.topAt), 'warn',
-        `The first line's big text pokes ${cutTop}px above the card, so the top of it gets cut off. The game puts the first line where 12pt text would go. A line break straight after the opening [head] or [font] tag fixes it.`);
+        `The first line's big text pokes ${cutTop}px above the card, so the top of it gets cut off. The game puts the first line where 12pt text would go. A line break straight after the opening [head] tag fixes it.`);
     }
     if (cutBottom > 0) {
       diag.at(sourcePos(source, drawn.ink.bottomAt), 'warn',
@@ -759,7 +602,6 @@ const PaperRenderer = (() => {
       glyphs: drawn.glyphs, controls: drawn.controls,
       diagnostics: sortDiagnostics(diag.items),
       length: source.length, maxLength: CARD.maxLength,
-      animate: env.state.animate, fontsLoading: env.state.fontsLoading,
     };
   }
 
@@ -833,16 +675,8 @@ const PaperRenderer = (() => {
     const f = model.defaultFont, m = f.metrics();
     if (model.blank) paintRun(g, model.blank.text, ox + model.blank.x, oy + m.ascent, f, rgba(PAPER.textColor));
 
-    for (const c of model.controls) {
-      const x = ox + c.x, y = oy + c.y;
-      if (c.type === 'link') {
-        c.text.split('\n').forEach((line, i) => paintRun(g, line, x, y + m.ascent + i * m.lineHeight, f, rgba(c.color)));
-      } else if (c.type === 'icon') {
-        g.fillStyle = 'rgba(128,128,128,0.45)';
-        g.fillRect(x, y + 5, 16, 16);
-      } else if (drawControls) {
-        paintButton(g, x, y, c.w, c.h, c.label, f);
-      }
+    if (drawControls) {
+      for (const c of model.controls) paintButton(g, ox + c.x, oy + c.y, c.w, c.h, c.label, f);
     }
   }
 

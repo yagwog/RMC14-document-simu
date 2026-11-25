@@ -84,9 +84,8 @@ button {
 .mode-switch button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
 .mode-switch button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
-/* Controls that only make sense for one of the two */
-body.mode-card .paper-only,
-body:not(.mode-card) .card-only { display: none; }
+/* Controls that only make sense on paper */
+body.mode-card .paper-only { display: none; }
 
 .panel { padding: 8px 10px 10px; }
 .panel h2 {
@@ -371,7 +370,6 @@ body.mode-card #preview { width: 698px; }
   overflow: hidden;
 }
 #card-canvas { display: block; }
-#card-controls { position: absolute; inset: 0; pointer-events: none; }
 
 /* In-paper buttons use the game's button colours. The label starts where the game's
    Label puts it (padding-left is set per button), rather than browser centring. */
@@ -394,16 +392,6 @@ body.mode-card #preview { width: 698px; }
 .paper-btn:active { background: #3e6c45; }
 .paper-btn.selected { background: #add8e6; color: #191919; }
 .paper-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-/* On a business card the buttons still highlight like real buttons, but do nothing. */
-.paper-btn.dead { cursor: default; }
-
-/* Links and icons are drawn on the canvas. These boxes only add the tooltip and cursor. */
-.paper-link,
-.paper-icon {
-  position: absolute;
-  pointer-events: auto;
-}
-.paper-link { cursor: pointer; }
 
 #paper-status {
   max-width: 520px;
@@ -498,9 +486,7 @@ body.mode-card #diagnostics { max-width: 650px; }
 .hex-row input[type=color] { width: 32px; height: 28px; padding: 0; border: 1px solid var(--border); border-radius: 4px; background: none; }
 .hex-row input[type=text] { width: 92px; }
 
-.popover input[type=text],
-.popover input[type=number],
-.popover select {
+.popover input[type=text] {
   padding: 5px 7px;
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -521,9 +507,7 @@ body.mode-card #diagnostics { max-width: 650px; }
 .popover .row { display: flex; gap: 6px; margin-top: 8px; justify-content: flex-end; }
 .popover label { display: block; font-size: 11px; color: var(--muted); margin: 6px 0 2px; }
 .popover label:first-child { margin-top: 0; }
-.popover .field-input,
-.popover select { width: 240px; }
-.popover select { display: block; }
+.popover .field-input { width: 240px; }
 .popover .hint { margin: 8px 0 0; font-size: 11px; color: var(--muted); max-width: 240px; }
 .check-choices { display: flex; gap: 6px; }
 .check-choices button { min-width: 80px; }
