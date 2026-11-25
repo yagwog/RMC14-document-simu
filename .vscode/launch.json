@@ -5,8 +5,11 @@
             "name": "Launch SS14 Document Simulator",
             "type": "chrome",
             "request": "launch",
-            "file": "${workspaceFolder}/index.html",
-            "webRoot": "${workspaceFolder}"
+            // Served over http by the "Serve Locally" task, because the page fetches its
+            // fonts and templates and browsers block that for pages opened as files.
+            "url": "http://127.0.0.1:8765/index.html",
+            "webRoot": "${workspaceFolder}",
+            "preLaunchTask": "Serve Locally"
         }
     ]
 }

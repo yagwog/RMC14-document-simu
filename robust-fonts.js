@@ -15,6 +15,38 @@ const ROBUST_FONT_FILES = {
   symbols2:   'fonts/NotoSansSymbols2-Regular.ttf',  // fallback 2 of the default stack
 };
 
+// Faces that only [font="..."] can reach. They're fetched the first time a paper asks for them.
+const ROBUST_EXTRA_FONT_FILES = {
+  display:           'fonts/NotoSansDisplay/NotoSansDisplay-Regular.ttf',
+  displayItalic:     'fonts/NotoSansDisplay/NotoSansDisplay-Italic.ttf',
+  displayBold:       'fonts/NotoSansDisplay/NotoSansDisplay-Bold.ttf',
+  displayBoldItalic: 'fonts/NotoSansDisplay/NotoSansDisplay-BoldItalic.ttf',
+  boxRound:          'fonts/Boxfont-round/Boxfont Round.ttf',
+  emoji:             'fonts/NotoEmoji/NotoEmoji.ttf',
+  cozette:           'fonts/Cozette/CozetteVector.ttf',
+  cozetteBold:       'fonts/Cozette/CozetteVectorBold.ttf',
+};
+
+// The font prototypes from Resources/Prototypes/fonts.yml and _RMC14/fonts.yml, which is
+// every name [font="..."] accepts. Names are case-sensitive. AnimalSilence's licence is
+// "All Rights Reserved", so it isn't shipped here and is drawn with Default instead.
+const ROBUST_FONT_PROTOTYPES = {
+  Default: 'regular',
+  DefaultItalic: 'italic',
+  DefaultBold: 'bold',
+  DefaultBoldItalic: 'bolditalic',
+  NotoSansDisplay: 'display',
+  NotoSansDisplayItalic: 'displayItalic',
+  NotoSansDisplayBold: 'displayBold',
+  NotoSansDisplayBoldItalic: 'displayBoldItalic',
+  BoxRound: 'boxRound',
+  AnimalSilence: null,
+  Monospace: 'mono',
+  Emoji: 'emoji',
+  Cozette: 'cozette',
+  CozetteBold: 'cozetteBold',
+};
+
 // Minimal TrueType reader: head, hhea, hmtx and cmap (formats 4 and 12).
 function parseTrueType(buffer) {
   const dv = new DataView(buffer);
@@ -99,7 +131,19 @@ function parseTrueType(buffer) {
     return dv.getUint16(hmtx + i * 4);
   }
 
-  return { upm, flags, ascender, descender, lineGap, glyphIndex, advanceUnits };
+  // Outline bounding box from the glyf table, or null for empty glyphs and non-TrueType fonts.
+  const loca = tables['loca'], glyf = tables['glyf'];
+  const longLoca = dv.getInt16(head + 50) !== 0;
+  function glyphBox(gid) {
+    if (loca === undefined || glyf === undefined) return null;
+    const off = longLoca ? dv.getUint32(loca + gid * 4) : dv.getUint16(loca + gid * 2) * 2;
+    const next = longLoca ? dv.getUint32(loca + gid * 4 + 4) : dv.getUint16(loca + gid * 2 + 2) * 2;
+    if (next <= off) return null;
+    const g = glyf + off;
+    return { xMin: dv.getInt16(g + 2), yMin: dv.getInt16(g + 4), xMax: dv.getInt16(g + 6), yMax: dv.getInt16(g + 8) };
+  }
+
+  return { upm, flags, ascender, descender, lineGap, glyphIndex, advanceUnits, glyphBox };
 }
 
 // One loaded face (a single .ttf), with FreeType-style sizing.
@@ -136,12 +180,32 @@ class RobustFace {
       lineHeight: Math.round(height),
       css: `${ppem}px "${this.family}"`,
       advances: new Map(),
+      ink: new Map(),
     };
     this._sizes.set(pt, s);
     return s;
   }
 
   hasGlyph(cp) { return this.ttf.glyphIndex(cp) !== 0; }
+
+  // Where a glyph's ink sits, in whole pixels: top and bottom relative to the baseline
+  // (top is negative) and the width and height of the bitmap FreeType renders for it.
+  // Hinting snaps outline edges to the pixel grid, so the edges are rounded rather than
+  // pushed outwards, which keeps tiny overshoots (the bottom of "e") on the baseline.
+  // Null when the glyph has no outline.
+  glyphInk(cp, pt) {
+    const s = this.size(pt);
+    if (s.ink.has(cp)) return s.ink.get(cp);
+    const gid = this.ttf.glyphIndex(cp);
+    const box = gid === 0 ? null : this.ttf.glyphBox(gid);
+    let ink = null;
+    if (box) {
+      const top = -Math.round(box.yMax * s.scale), bottom = -Math.round(box.yMin * s.scale);
+      ink = { top, bottom, w: Math.round(box.xMax * s.scale) - Math.round(box.xMin * s.scale), h: bottom - top };
+    }
+    s.ink.set(cp, ink);
+    return ink;
+  }
 
   // Hinted advance in whole pixels, or null if the face has no glyph.
   advance(cp, pt) {
@@ -211,20 +275,38 @@ class RobustFont {
 const RobustFonts = {
   faces: {},
   ready: false,
+  _pending: new Map(),   // extra face key → Promise
+  failed: new Set(),     // extra faces that couldn't be fetched
+  onFaceLoaded: null,    // called after an extra face arrives, so the page can redraw
+
+  async _loadFace(key, url) {
+    const res = await fetch(encodeURI(url));
+    if (!res.ok) throw new Error(`Could not load ${url} (${res.status})`);
+    const buf = await res.arrayBuffer();
+    const family = `Robust-${key}`;
+    const ff = new FontFace(family, buf.slice(0));
+    await ff.load();
+    document.fonts.add(ff);
+    this.faces[key] = new RobustFace(key, family, parseTrueType(buf));
+  },
 
   async load() {
-    const entries = Object.entries(ROBUST_FONT_FILES);
-    await Promise.all(entries.map(async ([key, url]) => {
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`Could not load ${url} (${res.status})`);
-      const buf = await res.arrayBuffer();
-      const family = `Robust-${key}`;
-      const ff = new FontFace(family, buf.slice(0));
-      await ff.load();
-      document.fonts.add(ff);
-      this.faces[key] = new RobustFace(key, family, parseTrueType(buf));
-    }));
+    await Promise.all(Object.entries(ROBUST_FONT_FILES).map(([key, url]) => this._loadFace(key, url)));
     this.ready = true;
+  },
+
+  // Starts fetching an extra face. Returns true once it's ready to use.
+  ensureFace(key) {
+    if (this.faces[key]) return true;
+    if (this.failed.has(key) || this._pending.has(key) || !ROBUST_EXTRA_FONT_FILES[key]) return false;
+    const p = this._loadFace(key, ROBUST_EXTRA_FONT_FILES[key])
+      .catch(err => { console.error(err); this.failed.add(key); })
+      .finally(() => {
+        this._pending.delete(key);
+        if (this.onFaceLoaded) this.onFaceLoaded(key);
+      });
+    this._pending.set(key, p);
+    return false;
   },
 
   // FontTag.DefaultSize
@@ -238,4 +320,22 @@ const RobustFonts = {
 
   // Single-face fonts created by markup tags (FontTag.CreateFont → new VectorFont).
   tagFont(key, pt) { return new RobustFont([this.faces[key]], pt); },
+
+  isPrototype(id) { return Object.prototype.hasOwnProperty.call(ROBUST_FONT_PROTOTYPES, id); },
+
+  // FontTag.CreateFont: a font prototype by id, or Default when no prototype has that id.
+  // status says whether the simulator could use the real face:
+  //   'ok', 'unknown' (no such prototype, Default like in game), 'unavailable' (not shipped here),
+  //   'loading' (fetching it, Default for now) or 'failed' (couldn't fetch it).
+  prototypeFont(id, pt) {
+    let status = 'ok';
+    let key = this.isPrototype(id) ? ROBUST_FONT_PROTOTYPES[id] : (status = 'unknown', 'regular');
+    if (key === null) { status = 'unavailable'; key = 'regular'; }
+    if (!this.faces[key]) {
+      if (this.failed.has(key)) status = 'failed';
+      else { this.ensureFace(key); status = 'loading'; }
+      key = 'regular';
+    }
+    return { font: this.tagFont(key, pt), status };
+  },
 };

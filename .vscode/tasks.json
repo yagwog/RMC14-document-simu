@@ -2,10 +2,35 @@
     "version": "2.0.0",
     "tasks": [
         {
+            // The page fetches its fonts and templates, which browsers block for pages opened
+            // as files, so it has to be served over http. Runs in the background and keeps
+            // running between debug sessions.
+            "label": "Serve Locally",
+            "type": "process",
+            "command": "python3",
+            "windows": { "command": "py" },
+            "args": ["-u", "-m", "http.server", "8765", "--bind", "127.0.0.1", "--directory", "${workspaceFolder}"],
+            "isBackground": true,
+            "problemMatcher": {
+                "owner": "serve-locally",
+                // Nothing to report, the matcher is only here to spot when the server is up.
+                "pattern": { "regexp": "^(?!x)x$" },
+                "background": {
+                    "activeBegins": true,
+                    "beginsPattern": "Serving HTTP",
+                    "endsPattern": "Serving HTTP"
+                }
+            },
+            "presentation": {
+                "reveal": "silent",
+                "panel": "dedicated"
+            }
+        },
+        {
             "label": "Open in Browser",
             "type": "shell",
-            "command": "start",
-            "args": ["index.html"],
+            "command": "start http://127.0.0.1:8765/index.html",
+            "dependsOn": "Serve Locally",
             "group": "build",
             "presentation": {
                 "echo": true,

@@ -18,12 +18,24 @@ const PALETTE = [
 ].filter(name => ROBUST_NAMED_COLORS[name.toLowerCase()]);
 
 const $ = id => document.getElementById(id);
-const editor = $('editor');
+const px = n => `${n}px`;
+
+// Paper and business cards each have their own editor, so each keeps its own text,
+// caret and undo history while you switch between them.
+const MODES = ['paper', 'card'];
+const editors = { paper: $('editor'), card: $('card-editor') };
+let mode = 'paper';
+let editor = editors.paper;
+
 const canvas = $('paper');
 const controlsLayer = $('paper-controls');
+const paperWindow = $('game-window');
+const cardWindow = $('card-window');
+const cardCanvas = $('card-canvas');
+const cardControls = $('card-controls');
 
 let currentModel = null;
-let loadedTemplate = null; // { path, text }
+const loadedTemplates = { paper: null, card: null }; // { path, text } for each editor
 
 // ─── Small storage helpers (per-browser conveniences only) ───────────────────
 const store = {
@@ -83,7 +95,7 @@ function centerText() {
   const centred = v.slice(s, e).split('\n').map(line => {
     const trimmed = line.replace(/^[ \t]+/, '').replace(/[ \t]+$/, '');
     if (!trimmed) return trimmed;
-    const w = PaperRenderer.measureLine(trimmed);
+    const w = PaperRenderer.measureLine(trimmed, mode, { round: getRound() });
     const pad = Math.max(0, Math.floor((width - w) / 2 / space));
     return ' '.repeat(pad) + trimmed;
   }).join('\n');
@@ -93,6 +105,7 @@ function centerText() {
 
 // ─── Rendering ────────────────────────────────────────────────────────────────
 let renderQueued = false;
+let animationTimer = 0;
 function scheduleRender() {
   if (renderQueued) return;
   renderQueued = true;
@@ -101,19 +114,24 @@ function scheduleRender() {
 
 function render() {
   if (!RobustFonts.ready) return;
-  const model = PaperRenderer.layout(editor.value);
+  clearTimeout(animationTimer);
+  const opts = { round: getRound(), time: Date.now() };
+  const card = mode === 'card';
+  const model = card ? PaperRenderer.layoutCard(editor.value, opts) : PaperRenderer.layoutPaper(editor.value, undefined, opts);
   currentModel = model;
-  const dpr = window.devicePixelRatio || 1;
-  PaperRenderer.paint(canvas, model, dpr);
-  canvas.style.width = `${model.width}px`;
-  canvas.style.height = `${model.height}px`;
-  layoutWindow(model);
+  const target = card ? cardCanvas : canvas;
+  PaperRenderer.paint(target, model, window.devicePixelRatio || 1);
+  target.style.width = px(model.width);
+  target.style.height = px(model.height);
+  if (!card) layoutWindow(model); // the card window never changes size
   renderControls(model);
   renderStatus(model);
   renderDiagnostics(model);
+  // [scramble] re-rolls on a timer, so keep redrawing while one is showing.
+  if (model.animate !== Infinity) animationTimer = setTimeout(scheduleRender, model.animate);
 }
 
-// ─── In-game window ───────────────────────────────────────────────────────────
+// ─── In-game paper window ─────────────────────────────────────────────────────
 // The preview is a copy of the game's PaperWindow at its default 520×660 size: a 54px
 // close-button row, then a scroll area. When the paper is taller than that area the
 // game shows a 10px scrollbar on the right and the paper gets 10px narrower, so the
@@ -125,10 +143,10 @@ const grabber = $('game-grabber');
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 function layoutWindow(model) {
-  scroller.style.width = `${model.contentWidth}px`;
-  paperFrame.style.marginLeft = `${model.paperX}px`;
-  paperFrame.style.width = `${model.width}px`;
-  paperFrame.style.height = `${model.height}px`;
+  scroller.style.width = px(model.contentWidth);
+  paperFrame.style.marginLeft = px(model.paperX);
+  paperFrame.style.width = px(model.width);
+  paperFrame.style.height = px(model.height);
   gameScrollbar.hidden = !model.scrolls;
   if (!model.scrolls) scroller.scrollTop = 0;
   updateGrabber();
@@ -138,14 +156,14 @@ function layoutWindow(model) {
 // 10px minimum grabber size, and the grabber spans Page/Max of it plus that 10px.
 function updateGrabber() {
   const m = currentModel;
-  if (!m || !m.scrolls) return;
+  if (!m || m.kind !== 'paper' || !m.scrolls) return;
   const track = Math.max(0, m.viewportHeight - PAPER.scrollbarWidth);
   const max = m.height;
   const value = clamp(scroller.scrollTop, 0, m.scrollMax);
   const start = value / max * track;
   const end = (value + m.viewportHeight) / max * track + PAPER.scrollbarWidth;
-  grabber.style.top = `${start}px`;
-  grabber.style.height = `${end - start}px`;
+  grabber.style.top = px(start);
+  grabber.style.height = px(end - start);
 }
 
 scroller.addEventListener('scroll', () => {
@@ -156,7 +174,7 @@ scroller.addEventListener('scroll', () => {
 // Dragging the grabber scrolls the paper, using the same ratio the game uses.
 grabber.addEventListener('pointerdown', ev => {
   const m = currentModel;
-  if (!m || !m.scrolls) return;
+  if (!m || m.kind !== 'paper' || !m.scrolls) return;
   ev.preventDefault();
   try { grabber.setPointerCapture(ev.pointerId); } catch { /* pointer already gone */ }
   grabber.classList.add('grabbed');
@@ -180,28 +198,65 @@ gameScrollbar.addEventListener('wheel', ev => {
   ev.preventDefault();
 }, { passive: false });
 
+// ─── Inline controls ──────────────────────────────────────────────────────────
+const BUTTON_TITLES = {
+  form: 'Fill in this field',
+  signature: 'Sign here',
+  check: 'Tick or cross this box',
+  date: 'Write the in-game date here',
+  time: 'Write the in-game time here',
+};
+
 function renderControls(model) {
+  const card = model.kind === 'card';
+  const layer = card ? cardControls : controlsLayer;
   controlsLayer.textContent = '';
+  cardControls.textContent = '';
   for (const c of model.controls) {
-    const b = document.createElement('button');
-    b.className = 'paper-btn';
-    b.textContent = c.label;
-    b.dataset.kind = c.kind;
-    b.dataset.index = c.index;
-    b.style.left = `${PAPER.border + c.x}px`;
-    b.style.top = `${PAPER.border + c.y}px`;
-    b.style.width = `${c.w}px`;
-    b.style.height = `${c.h}px`;
-    b.title = { form: 'Fill in this field', signature: 'Sign here', check: 'Tick or cross this box' }[c.kind];
-    controlsLayer.appendChild(b);
+    const el = document.createElement(c.type === 'button' ? 'button' : 'span');
+    el.style.left = px(model.origin.x + c.x);
+    el.style.top = px(model.origin.y + c.y);
+    el.style.width = px(c.w);
+    el.style.height = px(c.h);
+    if (c.type === 'button') {
+      el.className = 'paper-btn';
+      el.textContent = c.label;
+      el.dataset.kind = c.kind;
+      el.dataset.index = c.index;
+      el.style.paddingLeft = px(PaperRenderer.buttonLabelX(c.w, c.label, model.defaultFont));
+      if (card) {
+        el.classList.add('dead');
+        el.title = 'On a business card this button does nothing in game.';
+      } else {
+        el.title = BUTTON_TITLES[c.kind];
+      }
+    } else if (c.type === 'link') {
+      el.className = 'paper-link';
+      el.title = c.kind === 'cmdlink'
+        ? `Clicking this in game runs the console command: ${c.target}`
+        : `Guidebook link to "${c.target}". Clicking it here does nothing in game.`;
+    } else {
+      el.className = 'paper-icon';
+      el.title = `${c.language} language icon`;
+    }
+    layer.appendChild(el);
   }
 }
 
 function renderStatus(model) {
-  const text = model.scrolls
-    ? `Scrollbar showing, like in game. The paper is ${model.width}px wide and text wraps at ${model.wrapWidth}px, 10px narrower than without it.`
-    : `No scrollbar at this window size. The paper is ${model.width}px wide and text wraps at ${model.wrapWidth}px.`;
-  $('paper-status').textContent = text;
+  const status = $('paper-status');
+  status.textContent = '';
+  if (model.kind === 'card') {
+    const count = document.createElement('span');
+    count.className = model.length > model.maxLength ? 'count over' : 'count';
+    count.textContent = `${model.length}/${model.maxLength}`;
+    status.append(count, ` characters, the count the game shows while you write. The card is ${model.window.width}×${model.surface.h}px, text wraps at ${model.wrapWidth}px, and business cards never scroll.`);
+  } else {
+    status.textContent = model.scrolls
+      ? `Scrollbar showing, like in game. The paper is ${model.width}px wide and text wraps at ${model.wrapWidth}px, 10px narrower than without it.`
+      : `No scrollbar at this window size. The paper is ${model.width}px wide and text wraps at ${model.wrapWidth}px.`;
+  }
+  if (model.fontsLoading) status.append(' Loading fonts…');
 }
 
 function renderDiagnostics(model) {
@@ -231,7 +286,7 @@ function goToLine(n) {
   editor.scrollTop = Math.max(0, (n - 5) * lineHeight);
 }
 
-// ─── Fill / Sign / Check buttons ─────────────────────────────────────────────
+// ─── Fill / Sign / Check / Date / Time buttons ───────────────────────────────
 const fieldPopover = $('field-popover');
 let selectedButton = null;
 
@@ -249,8 +304,48 @@ function openPopoverAt(pop, anchor) {
   let left = Math.min(r.left, window.innerWidth - pw - 8);
   let top = r.bottom + 6;
   if (top + ph > window.innerHeight - 8) top = Math.max(8, r.top - ph - 6);
-  pop.style.left = `${Math.max(8, left)}px`;
-  pop.style.top = `${top}px`;
+  pop.style.left = px(Math.max(8, left));
+  pop.style.top = px(top);
+}
+
+function popoverRow(...buttons) {
+  const row = document.createElement('div');
+  row.className = 'row';
+  row.append(...buttons);
+  return row;
+}
+
+function popoverButton(text, onClick) {
+  const b = document.createElement('button');
+  b.textContent = text;
+  b.addEventListener('click', onClick);
+  return b;
+}
+
+function popoverHint(text) {
+  const hint = document.createElement('p');
+  hint.className = 'hint';
+  hint.textContent = text;
+  return hint;
+}
+
+// A labelled text box per [key, label, placeholder], all saved together with Enter.
+function popoverFields(prefix, specs, values, submit) {
+  const fields = {};
+  for (const [key, label, ph] of specs) {
+    const l = document.createElement('label');
+    l.textContent = label;
+    const i = document.createElement('input');
+    i.type = 'text';
+    i.className = 'field-input';
+    i.placeholder = ph;
+    i.value = values[key] || '';
+    l.htmlFor = i.id = `${prefix}-${key}`;
+    i.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); submit(); } });
+    fields[key] = i;
+    fieldPopover.append(l, i);
+  }
+  return fields;
 }
 
 // The nth button of a kind replaces the nth literal tag, exactly like the game.
@@ -270,21 +365,12 @@ function openFormDialog(btn, index) {
   input.type = 'text';
   input.className = 'field-input';
   input.placeholder = 'Type and press Enter';
-  const ok = document.createElement('button');
-  ok.textContent = 'OK';
-  const cancel = document.createElement('button');
-  cancel.textContent = 'Cancel';
-  const row = document.createElement('div');
-  row.className = 'row';
-  row.append(ok, cancel);
-  fieldPopover.append(input, row);
   const submit = () => {
     const value = input.value;
     closeFieldPopover();
     if (value) replaceNthTag('[form]', index, value);
   };
-  ok.addEventListener('click', submit);
-  cancel.addEventListener('click', closeFieldPopover);
+  fieldPopover.append(input, popoverRow(popoverButton('OK', submit), popoverButton('Cancel', closeFieldPopover)));
   input.addEventListener('keydown', ev => {
     if (ev.key === 'Enter') { ev.preventDefault(); submit(); }
     if (ev.key === 'Escape') closeFieldPopover();
@@ -300,15 +386,19 @@ function openCheckDialog(btn, index) {
   const wrap = document.createElement('div');
   wrap.className = 'check-choices';
   for (const [symbol, label] of [['☐', 'Blank'], ['✔', 'Check'], ['✖', 'Cross']]) {
-    const b = document.createElement('button');
-    b.textContent = `${symbol} ${label}`;
-    b.addEventListener('click', () => { closeFieldPopover(); replaceNthTag('[check]', index, symbol); });
-    wrap.appendChild(b);
+    wrap.appendChild(popoverButton(`${symbol} ${label}`, () => { closeFieldPopover(); replaceNthTag('[check]', index, symbol); }));
   }
   fieldPopover.append(wrap);
   openPopoverAt(fieldPopover, btn);
   wrap.firstChild.focus();
 }
+
+// PaperSystem.GetWorldDateTime: the in-game date is a hundred years after today. The
+// in-game time is a random offset plus the round's length, so the time now is as good
+// as any. Both are written the way the server formats them.
+const pad2 = n => String(n).padStart(2, '0');
+function gameDate(now = new Date()) { return `${pad2(now.getDate())}/${pad2(now.getMonth() + 1)}/${now.getFullYear() + 100}`; }
+function gameTime(now = new Date()) { return `${pad2(now.getHours())}:${pad2(now.getMinutes())}`; }
 
 // Signature format from PaperSystem.GetPlayerSignature: "Rank Name, Role".
 function getIdentity() { return store.get('ss14paper.identity', { rank: '', name: '', role: '' }); }
@@ -325,31 +415,6 @@ function updateIdentityLabel() {
 
 function openIdentityDialog(anchor, onSaved) {
   closeFieldPopover();
-  const id = getIdentity();
-  const fields = {};
-  for (const [key, label, ph] of [['rank', 'Rank (short)', 'e.g. Cpl.'], ['name', 'Name', 'e.g. John Doe'], ['role', 'Role', 'e.g. Rifleman']]) {
-    const l = document.createElement('label');
-    l.textContent = label;
-    const i = document.createElement('input');
-    i.type = 'text';
-    i.className = 'field-input';
-    i.placeholder = ph;
-    i.value = id[key] || '';
-    l.htmlFor = i.id = `identity-${key}`;
-    fields[key] = i;
-    fieldPopover.append(l, i);
-  }
-  const hint = document.createElement('p');
-  hint.className = 'hint';
-  hint.textContent = 'Signing writes "Rank Name, Role" like the game does. Saved in this browser only.';
-  const save = document.createElement('button');
-  save.textContent = onSaved ? 'Save and sign' : 'Save';
-  const cancel = document.createElement('button');
-  cancel.textContent = 'Cancel';
-  const row = document.createElement('div');
-  row.className = 'row';
-  row.append(save, cancel);
-  fieldPopover.append(hint, row);
   const submit = () => {
     const next = { rank: fields.rank.value.trim(), name: fields.name.value.trim(), role: fields.role.value.trim() };
     store.set('ss14paper.identity', next);
@@ -357,17 +422,81 @@ function openIdentityDialog(anchor, onSaved) {
     closeFieldPopover();
     if (onSaved && next.name) onSaved();
   };
-  save.addEventListener('click', submit);
-  cancel.addEventListener('click', closeFieldPopover);
-  for (const input of Object.values(fields)) {
-    input.addEventListener('keydown', ev => {
-      if (ev.key === 'Enter') { ev.preventDefault(); submit(); }
-    });
-  }
+  const fields = popoverFields('identity',
+    [['rank', 'Rank (short)', 'e.g. Cpl.'], ['name', 'Name', 'e.g. John Doe'], ['role', 'Role', 'e.g. Rifleman']],
+    getIdentity(), submit);
+  fieldPopover.append(
+    popoverHint('Signing writes "Rank Name, Role" like the game does. Saved in this browser only.'),
+    popoverRow(popoverButton(onSaved ? 'Save and sign' : 'Save', submit), popoverButton('Cancel', closeFieldPopover)));
   openPopoverAt(fieldPopover, anchor);
   fields.name.value ? fields.rank.focus() : fields.name.focus();
 }
 
+// What [operation], [planet] and [ship] show. The game fills these in when a round starts.
+function getRound() { return store.get('ss14paper.round', { operation: '', planet: '', ship: '' }); }
+function updateRoundLabel() {
+  const r = getRound();
+  $('round-label').textContent = [r.operation, r.planet, r.ship].filter(Boolean).join(' · ') || 'Not set';
+}
+
+function openRoundDialog(anchor) {
+  closeFieldPopover();
+  const submit = () => {
+    store.set('ss14paper.round', { operation: fields.operation.value.trim(), planet: fields.planet.value.trim(), ship: fields.ship.value.trim() });
+    updateRoundLabel();
+    closeFieldPopover();
+    scheduleRender();
+  };
+  const fields = popoverFields('round',
+    [['operation', 'Operation', 'Operation name'], ['planet', 'Planet', 'Planet name'], ['ship', 'Ship', 'Ship name']],
+    getRound(), submit);
+  fieldPopover.append(
+    popoverHint('What [operation], [planet] and [ship] show. Blank ones show "Unknown Operation" and so on, like the game does without a round. Saved in this browser only.'),
+    popoverRow(popoverButton('Save', submit), popoverButton('Cancel', closeFieldPopover)));
+  openPopoverAt(fieldPopover, anchor);
+  fields.operation.focus();
+}
+
+// [font="Name" size=N]: only business cards show it, since paper doesn't allow the tag.
+function openFontDialog(anchor) {
+  closeFieldPopover();
+  const last = store.get('ss14paper.font', { name: 'Default', size: 20 });
+  const nameLabel = document.createElement('label');
+  nameLabel.textContent = 'Font';
+  const select = document.createElement('select');
+  select.id = nameLabel.htmlFor = 'font-name';
+  for (const name of Object.keys(ROBUST_FONT_PROTOTYPES)) {
+    const o = document.createElement('option');
+    o.value = name;
+    o.textContent = ROBUST_FONT_PROTOTYPES[name] === null ? `${name} (shown as Default here)` : name;
+    select.appendChild(o);
+  }
+  select.value = RobustFonts.isPrototype(last.name) ? last.name : 'Default';
+  const sizeLabel = document.createElement('label');
+  sizeLabel.textContent = 'Size';
+  const size = document.createElement('input');
+  size.type = 'number';
+  size.min = 1;
+  size.max = 200;
+  size.className = 'field-input';
+  size.id = sizeLabel.htmlFor = 'font-size';
+  size.value = last.size || '';
+  const submit = () => {
+    const n = parseInt(size.value, 10);
+    store.set('ss14paper.font', { name: select.value, size: n > 0 ? n : '' });
+    closeFieldPopover();
+    insertTag(n > 0 ? `font="${select.value}" size=${n}` : `font="${select.value}"`);
+  };
+  size.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); submit(); } });
+  fieldPopover.append(nameLabel, select, sizeLabel, size,
+    popoverHint('Wraps the selection in [font="Name" size=N]. Size 12 is normal text. Leave the size blank to keep the size around it.'),
+    popoverRow(popoverButton('Insert', submit), popoverButton('Cancel', closeFieldPopover)));
+  openPopoverAt(fieldPopover, anchor);
+  select.focus();
+}
+
+// Paper buttons work like in game. On a business card they do nothing, so the card's
+// layer has no click handling at all.
 controlsLayer.addEventListener('click', ev => {
   const btn = ev.target.closest('.paper-btn');
   if (!btn) return;
@@ -376,6 +505,8 @@ controlsLayer.addEventListener('click', ev => {
   switch (btn.dataset.kind) {
     case 'form': openFormDialog(btn, index); break;
     case 'check': openCheckDialog(btn, index); break;
+    case 'date': replaceNthTag('[date]', index, gameDate()); break;
+    case 'time': replaceNthTag('[time]', index, gameTime()); break;
     case 'signature': {
       const sign = () => replaceNthTag('[signature]', index, signatureText());
       if (signatureText()) sign();
@@ -417,8 +548,9 @@ $('hex-input').addEventListener('keydown', e => { if (e.key === 'Enter') { e.pre
 
 // ─── Files ───────────────────────────────────────────────────────────────────
 function baseFileName() {
-  if (loadedTemplate) return loadedTemplate.path.split('/').pop().replace(/\.txt$/i, '');
-  return 'document';
+  const t = loadedTemplates[mode];
+  if (t) return t.path.split('/').pop().replace(/\.txt$/i, '');
+  return mode === 'card' ? 'business-card' : 'document';
 }
 
 function download(blob, name) {
@@ -433,10 +565,11 @@ function saveTextAsFile() {
   download(new Blob([editor.value], { type: 'text/plain' }), `${baseFileName()}.txt`);
 }
 
+// Saves just the white paper or card, with the buttons drawn in.
 function saveRenderAsImage() {
   if (!currentModel) return;
   const out = document.createElement('canvas');
-  PaperRenderer.paint(out, currentModel, 2, { drawControls: true });
+  PaperRenderer.paint(out, currentModel, 2, { drawControls: true, surfaceOnly: true });
   out.toBlob(blob => download(blob, `${baseFileName()}.png`), 'image/png');
 }
 
@@ -444,9 +577,41 @@ $('file-input').addEventListener('change', e => {
   const f = e.target.files[0];
   if (!f) return;
   const r = new FileReader();
-  r.onload = () => { loadedTemplate = null; replaceAll(String(r.result)); };
+  r.onload = () => { loadedTemplates[mode] = null; markActiveTemplate(); replaceAll(String(r.result)); };
   r.readAsText(f);
   e.target.value = '';
+});
+
+// ─── Paper / business card switch ────────────────────────────────────────────
+function setMode(next, { initial = false } = {}) {
+  if (!MODES.includes(next) || (next === mode && !initial)) return;
+  mode = next;
+  editor = editors[mode];
+  const card = mode === 'card';
+  document.body.classList.toggle('mode-card', card);
+  for (const b of document.querySelectorAll('.mode-switch button')) b.setAttribute('aria-pressed', String(b.dataset.mode === mode));
+  for (const m of MODES) editors[m].hidden = m !== mode;
+  paperWindow.hidden = card;
+  cardWindow.hidden = !card;
+  closeFieldPopover();
+  colorPopover.hidden = true;
+  markActiveTemplate();
+  store.set('ss14paper.mode', mode);
+  try { history.replaceState(null, '', card ? '#card' : location.pathname + location.search); } catch { /* file:// pages */ }
+  if (!initial) editor.focus();
+  render();
+}
+
+function initialMode() {
+  if (location.hash === '#card') return 'card';
+  if (location.hash === '#paper') return 'paper';
+  const saved = store.get('ss14paper.mode', 'paper');
+  return MODES.includes(saved) ? saved : 'paper';
+}
+
+document.querySelector('.mode-switch').addEventListener('click', ev => {
+  const b = ev.target.closest('button[data-mode]');
+  if (b) setMode(b.dataset.mode);
 });
 
 // ─── Toolbar wiring ───────────────────────────────────────────────────────────
@@ -462,6 +627,7 @@ document.querySelector('.tools').addEventListener('click', ev => {
       ev.stopPropagation();
       if (colorPopover.hidden) openPopoverAt(colorPopover, b); else colorPopover.hidden = true;
       break;
+    case 'font': ev.stopPropagation(); openFontDialog(b); break;
     case 'finalize': {
       const cleaned = PaperRenderer.cleanUnfilledTags(editor.value);
       if (cleaned !== editor.value) replaceAll(cleaned);
@@ -473,8 +639,9 @@ document.querySelector('.tools').addEventListener('click', ev => {
   }
 });
 $('identity-btn').addEventListener('click', ev => { ev.stopPropagation(); openIdentityDialog(ev.currentTarget); });
+$('round-btn').addEventListener('click', ev => { ev.stopPropagation(); openRoundDialog(ev.currentTarget); });
 
-editor.addEventListener('input', scheduleRender);
+for (const ed of Object.values(editors)) ed.addEventListener('input', scheduleRender);
 
 document.addEventListener('keydown', ev => {
   if (ev.key === 'Escape') { closeFieldPopover(); colorPopover.hidden = true; }
@@ -487,7 +654,7 @@ document.addEventListener('keydown', ev => {
 // Click-away closes popovers.
 document.addEventListener('mousedown', ev => {
   if (!colorPopover.hidden && !colorPopover.contains(ev.target) && !ev.target.closest('#color-btn')) colorPopover.hidden = true;
-  if (!fieldPopover.hidden && !fieldPopover.contains(ev.target) && !ev.target.closest('.paper-btn') && !ev.target.closest('#identity-btn')) closeFieldPopover();
+  if (!fieldPopover.hidden && !fieldPopover.contains(ev.target) && !ev.target.closest('.paper-btn, .popover-anchor')) closeFieldPopover();
 });
 
 // ─── Templates ────────────────────────────────────────────────────────────────
@@ -545,6 +712,12 @@ function renderTree(node, container) {
   }
 }
 
+// Highlights the template the current editor was loaded from, if any.
+function markActiveTemplate() {
+  const t = loadedTemplates[mode];
+  document.querySelectorAll('.tree-file').forEach(el => el.classList.toggle('active', !!t && el.dataset.path === t.path));
+}
+
 async function fetchTemplate(path) {
   if (templateCache.has(path)) return templateCache.get(path);
   const res = await fetch(templateUrl(path));
@@ -556,15 +729,15 @@ async function fetchTemplate(path) {
 
 async function loadTemplate(btn) {
   const path = btn.dataset.path;
-  const dirty = editor.value.trim() !== '' && (!loadedTemplate || editor.value !== loadedTemplate.text);
+  const loaded = loadedTemplates[mode];
+  const dirty = editor.value.trim() !== '' && (!loaded || editor.value !== loaded.text);
   if (dirty && !confirm('Replace your current text with this template? You can undo with Ctrl+Z.')) return;
   btn.classList.add('loading');
   try {
     const text = await fetchTemplate(path);
     replaceAll(text);
-    loadedTemplate = { path, text: editor.value };
-    document.querySelectorAll('.tree-file.active').forEach(el => el.classList.remove('active'));
-    btn.classList.add('active');
+    loadedTemplates[mode] = { path, text: editor.value };
+    markActiveTemplate();
   } catch {
     alert('Failed to load template ☹');
   } finally {
@@ -628,16 +801,24 @@ async function initTemplates() {
 // ─── Bootstrap ────────────────────────────────────────────────────────────────
 buildColorGrid();
 updateIdentityLabel();
+updateRoundLabel();
 initTemplates();
+setMode(initialMode(), { initial: true });
+
+// Fonts that only [font="..."] uses arrive later. Redraw when one does.
+RobustFonts.onFaceLoaded = () => scheduleRender();
 
 RobustFonts.load()
   .then(() => {
     $('paper-loading').hidden = true;
+    $('card-loading').hidden = true;
     render();
   })
   .catch(err => {
     console.error(err);
-    $('paper-loading').textContent = 'Could not load the fonts. Open the site through a web server (for example VS Code Live Server), not as a file.';
+    const msg = 'Could not load the fonts. Open the site through a web server (for example VS Code Live Server), not as a file.';
+    $('paper-loading').textContent = msg;
+    $('card-loading').textContent = msg;
   });
 
 // Re-render when the screen's pixel density changes (zoom, moving monitors).

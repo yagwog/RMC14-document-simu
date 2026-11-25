@@ -9,6 +9,7 @@
   --button: light-dark(#fafafa, #3e3e3e);
   --button-hover: light-dark(#e6e6e6, #4c4c4c);
   --accent: light-dark(#2f6fbf, #7fb0e8);
+  --on-accent: light-dark(#ffffff, #0d1b2a);
   --folder: #f2b33d;
   --tree-text: light-dark(#34495e, #b0c2d4);
   --tree-hover: light-dark(rgba(47, 111, 191, 0.12), rgba(176, 194, 212, 0.12));
@@ -57,6 +58,36 @@ button {
 .brand strong { display: block; font-size: 14px; }
 .brand span { display: block; font-size: 11px; color: var(--muted); }
 
+/* Paper / business card switch */
+.mode-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  margin: 10px 10px 2px;
+  padding: 2px;
+  background: var(--button);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.mode-switch button {
+  padding: 5px 6px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.mode-switch button:hover { background: var(--button-hover); color: var(--text); }
+.mode-switch button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+.mode-switch button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* Controls that only make sense for one of the two */
+body.mode-card .paper-only,
+body:not(.mode-card) .card-only { display: none; }
+
 .panel { padding: 8px 10px 10px; }
 .panel h2 {
   margin: 8px 0 6px;
@@ -96,6 +127,7 @@ button {
 }
 .tool-grid .wide { grid-column: span 2; }
 .tool-grid .full { grid-column: 1 / -1; }
+.tool-grid.field-grid { grid-template-columns: repeat(5, 1fr); }
 .mono-label { font-family: 'Robust-mono', Consolas, monospace; font-weight: 400 !important; }
 .swatch-icon {
   display: inline-block;
@@ -207,7 +239,7 @@ button {
 .tree-empty { padding: 6px; color: var(--muted); }
 
 /* ── Editor ─────────────────────────────────────────────── */
-#editor {
+.editor {
   min-width: 0;
   height: 100vh;
   padding: 15px;
@@ -224,7 +256,7 @@ button {
   color: var(--text);
   tab-size: 4;
 }
-#editor:focus { outline: none; }
+.editor:focus { outline: none; }
 
 /* ── Preview ─────────────────────────────────────────────── */
 #preview {
@@ -233,6 +265,8 @@ button {
   overflow-y: auto;
   padding: 20px 24px;
 }
+body.mode-card #preview { width: 698px; }
+#game-window[hidden], #card-window[hidden] { display: none; }
 
 /* Copy of the game's PaperWindow at its default 520×660 size. Anything that isn't
    paper, the close button or the scrollbar is see-through in game, so the outline
@@ -304,7 +338,8 @@ button {
 #game-grabber:hover { background: rgba(140, 140, 140, 0.35); }
 #game-grabber.grabbed { background: rgba(160, 160, 160, 0.35); }
 
-#paper-loading {
+#paper-loading,
+#card-loading {
   position: absolute;
   inset: 54px 0 0 0;
   display: grid;
@@ -313,9 +348,33 @@ button {
   color: #6b6b6b;
   font-size: 14px;
 }
-#paper-loading[hidden] { display: none; }
+#card-loading { inset: 42px 0 0 0; z-index: 3; }
+#paper-loading[hidden],
+#card-loading[hidden] { display: none; }
 
-/* In-paper buttons use the game's button colours. */
+/* Copy of the game's BusinessCardWindow: fixed 650×430, the close button's AngleRect sits
+   right in the corner with no margin, and the white card fills the rest. The card cuts
+   off anything outside it, buttons and links included. */
+#card-window {
+  position: relative;
+  width: 650px;
+  height: 430px;
+  outline: 1px dashed var(--border);
+}
+#card-window .close-panel { top: 0; right: 0; }
+#card-frame {
+  position: absolute;
+  top: 42px;
+  left: 0;
+  width: 650px;
+  height: 388px;
+  overflow: hidden;
+}
+#card-canvas { display: block; }
+#card-controls { position: absolute; inset: 0; pointer-events: none; }
+
+/* In-paper buttons use the game's button colours. The label starts where the game's
+   Label puts it (padding-left is set per button), rather than browser centring. */
 .paper-btn {
   position: absolute;
   pointer-events: auto;
@@ -326,6 +385,7 @@ button {
   color: #ffffff;
   font: 16px 'Robust-regular', 'Robust-symbols', 'Robust-symbols2', sans-serif;
   line-height: 1;
+  text-align: left;
   cursor: pointer;
   overflow: visible;
   white-space: nowrap;
@@ -334,6 +394,16 @@ button {
 .paper-btn:active { background: #3e6c45; }
 .paper-btn.selected { background: #add8e6; color: #191919; }
 .paper-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* On a business card the buttons still highlight like real buttons, but do nothing. */
+.paper-btn.dead { cursor: default; }
+
+/* Links and icons are drawn on the canvas. These boxes only add the tooltip and cursor. */
+.paper-link,
+.paper-icon {
+  position: absolute;
+  pointer-events: auto;
+}
+.paper-link { cursor: pointer; }
 
 #paper-status {
   max-width: 520px;
@@ -341,6 +411,10 @@ button {
   font-size: 12px;
   color: var(--muted);
 }
+body.mode-card #paper-status,
+body.mode-card #diagnostics { max-width: 650px; }
+#paper-status .count { font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+#paper-status .count.over { color: var(--error); }
 
 #diagnostics {
   max-width: 520px;
@@ -424,7 +498,9 @@ button {
 .hex-row input[type=color] { width: 32px; height: 28px; padding: 0; border: 1px solid var(--border); border-radius: 4px; background: none; }
 .hex-row input[type=text] { width: 92px; }
 
-.popover input[type=text] {
+.popover input[type=text],
+.popover input[type=number],
+.popover select {
   padding: 5px 7px;
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -445,7 +521,9 @@ button {
 .popover .row { display: flex; gap: 6px; margin-top: 8px; justify-content: flex-end; }
 .popover label { display: block; font-size: 11px; color: var(--muted); margin: 6px 0 2px; }
 .popover label:first-child { margin-top: 0; }
-.popover .field-input { width: 240px; }
+.popover .field-input,
+.popover select { width: 240px; }
+.popover select { display: block; }
 .popover .hint { margin: 8px 0 0; font-size: 11px; color: var(--muted); max-width: 240px; }
 .check-choices { display: flex; gap: 6px; }
 .check-choices button { min-width: 80px; }
@@ -453,12 +531,13 @@ button {
 /* ── Narrow screens: stack everything ─────────────────────── */
 @media (max-width: 1080px) {
   body { grid-template-columns: 220px 1fr; grid-template-rows: 100vh auto; overflow: auto; height: auto; }
-  #preview { grid-column: 1 / -1; width: auto; height: auto; overflow: visible; }
+  #preview,
+  body.mode-card #preview { grid-column: 1 / -1; width: auto; height: auto; overflow: visible; }
 }
 @media (max-width: 640px) {
   body { grid-template-columns: 1fr; }
   #sidebar { max-height: none; }
   .templates { max-height: 50vh; }
-  #editor { height: 60vh; border-right: 0; border-top: 1px solid var(--border); }
+  .editor { height: 60vh; border-right: 0; border-top: 1px solid var(--border); }
   #preview { padding: 16px; overflow-x: auto; }
 }
